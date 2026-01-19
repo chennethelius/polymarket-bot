@@ -1,0 +1,358 @@
+// Polymarket Intelligence Platform
+// Database schema for trading analytics
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MARKET DATA
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Market {
+  id             String   @id @default(cuid())
+  externalId     String   @unique // Polymarket condition_id
+  platform       String   @default("POLYMARKET")
+  question       String
+  description    String?
+  category       String   @default("OTHER")
+  slug           String?
+
+  // Status
+  status         String   @default("ACTIVE") // ACTIVE, CLOSED, RESOLVED, INVALID
+  startDate      DateTime @default(now())
+  endDate        DateTime?
+  resolutionDate DateTime?
+  resolution     String? // YES, NO, INVALID, CANCELLED
+
+  // Token IDs
+  yesTokenId     String?
+  noTokenId      String?
+
+  // Current state (cached)
+  yesPrice       Float    @default(0)
+  noPrice        Float    @default(0)
+  volume24h      Float    @default(0)
+  totalVolume    Float    @default(0)
+  liquidity      Float    @default(0)
+  spread         Float    @default(0)
+
+  // Metadata
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  priceSnapshots    PriceSnapshot[]
+  orderBookSnapshots OrderBookSnapshot[]
+  trades            Trade[]
+  positions         Position[]
+  events            MarketEvent[]
+  signals           PsychologySignal[]
+
+  @@index([platform, status])
+  @@index([category])
+  @@index([endDate])
+  @@index([slug])
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  marketId   String
+  market     Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  timestamp  DateTime
+  yesBid     Float
+  yesAsk     Float
+  noBid      Float
+  noAsk      Float
+  yesBidSize Float
+  yesAskSize Float
+  volume     Float
+
+  @@index([marketId, timestamp])
+  @@map("price_snapshots")
+}
+
+model OrderBookSnapshot {
+  id         String   @id @default(cuid())
+  marketId   String
+  market     Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  
+  timestamp  DateTime
+  bestBid    Float
+  bestAsk    Float
+  spread     Float
+  bidDepth   Float
+  askDepth   Float
+  midPrice   Float
+  
+  bids       String   // JSON array of {price, size}
+  asks       String   // JSON array of {price, size}
+  
+  @@index([marketId, timestamp])
+  @@map("order_book_snapshots")
+}
+
+model MarketEvent {
+  id          String   @id @default(cuid())
+  marketId    String
+  market      Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  
+  timestamp   DateTime
+  eventType   String   // "round_win" | "clutch" | "ace" | "eco_round"
+  metadata    String   // JSON: {team, player, score}
+  
+  priceBefore Float?
+  priceAfter  Float?
+  volumeSpike Float?
+  
+  @@index([marketId, timestamp])
+  @@map("market_events")
+}
+
+model PsychologySignal {
+  id            String   @id @default(cuid())
+  marketId      String
+  market        Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  
+  timestamp     DateTime
+  signalType    String   // "PANIC_SELL" | "FOMO_BUY" | "LIQUIDITY_VACUUM"
+  score         Float    // 0-1 confidence
+  
+  volumeRatio   Float?
+  spreadRatio   Float?
+  priceChange   Float?
+  
+  // Outcome tracking
+  reverted      Boolean?
+  reversionTime Int?     // seconds
+  maxProfit     Float?
+  
+  @@index([marketId, timestamp])
+  @@index([signalType])
+  @@map("psychology_signals")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TRADER DATA
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Trader {
+  id                 String    @id @default(cuid())
+  address            String    @unique // Wallet address
+
+  // Classification
+  strategy           String? // Strategy enum as string
+  strategyConfidence Float?
+  skillScore         Int? // 0-100
+
+  // Aggregated stats (cached)
+  totalTrades        Int       @default(0)
+  winRate            Float?
+  sharpeRatio        Float?
+  profitFactor       Float?
+  totalPnl           Float?
+  maxDrawdown        Float?
+
+  // Activity
+  firstTradeAt       DateTime?
+  lastTradeAt        DateTime?
+  isActive           Boolean   @default(true)
+  isWhale            Boolean   @default(false)
+
+  // Metadata
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  trades             Trade[]
+  positions          Position[]
+  features           TraderFeatures?
+
+  @@index([strategy])
+  @@index([isWhale])
+  @@index([skillScore])
+  @@index([totalPnl])
+}
+
+model TraderFeatures {
+  id                    String   @id @default(cuid())
+  traderId              String   @unique
+  trader                Trader   @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  // Timing features
+  avgHoldTimeMin        Float
+  medianHoldTime        Float
+  holdTimeStdDev        Float
+  tradesPerDay          Float
+  settlementPct         Float // % trades near settlement
+
+  // Position sizing
+  avgPositionSize       Float
+  positionSizeCV        Float // Coefficient of variation
+  maxPositionRatio      Float
+
+  // Market selection
+  categoryEntropy       Float
+  avgLiquidity          Float
+  avgSpread             Float
+  uniqueMarkets         Int
+
+  // Correlation/hedging
+  correlatedPairRatio   Float
+  simultaneousPositions Float
+
+  // Behavioral
+  tradesAfterLoss       Float
+  tradesAfterWin        Float
+  weekendActivity       Float
+
+  // Consistency
+  consistencyScore      Float
+
+  updatedAt             DateTime @updatedAt
+
+  @@map("trader_features")
+}
+
+model Trade {
+  id                 String   @id @default(cuid())
+  externalId         String?  @unique // On-chain tx hash
+
+  traderId           String
+  trader             Trader   @relation(fields: [traderId], references: [id], onDelete: Cascade)
+  marketId           String
+  market             Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  // Trade details
+  side               String // YES or NO
+  action             String // BUY or SELL
+  price              Float
+  size               Float
+  value              Float // price * size
+
+  // Outcome (filled after exit)
+  entryTime          DateTime
+  exitTime           DateTime?
+  exitPrice          Float?
+  holdTimeMinutes    Int?
+  pnl                Float?
+  pnlPercent         Float?
+  outcome            String? // WIN, LOSS, BREAKEVEN, PENDING
+
+  // Context
+  timeToSettlement   Int? // Minutes until market resolved
+  wasSettlementTrade Boolean  @default(false)
+
+  createdAt          DateTime @default(now())
+
+  @@index([traderId, entryTime])
+  @@index([marketId, entryTime])
+  @@index([outcome])
+  @@index([entryTime])
+}
+
+model Position {
+  id            String   @id @default(cuid())
+  traderId      String
+  trader        Trader   @relation(fields: [traderId], references: [id], onDelete: Cascade)
+  marketId      String
+  market        Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  side          String
+  avgEntryPrice Float
+  quantity      Float
+  currentValue  Float
+  unrealizedPnl Float
+
+  openedAt      DateTime
+  lastUpdated   DateTime @updatedAt
+
+  @@unique([traderId, marketId, side])
+  @@index([traderId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI INSIGHTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Insight {
+  id                 String    @id @default(cuid())
+  type               String // InsightType
+
+  // Content
+  title              String
+  summary            String
+  fullAnalysis       String
+
+  // Data backing
+  tradersAnalyzed    Int
+  tradesAnalyzed     Int
+  dataStartDate      DateTime
+  dataEndDate        DateTime
+
+  // Confidence
+  confidence         String // InsightConfidence
+  confidenceScore    Int // 0-100
+  pValue             Float?
+
+  // Verification
+  isVerified         Boolean   @default(false)
+  verificationErrors String    @default("[]") // JSON array
+
+  // Publishing
+  status             String    @default("DRAFT")
+  publishedAt        DateTime?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  citations          Citation[]
+
+  @@index([type, status])
+  @@index([publishedAt])
+}
+
+model Citation {
+  id               String  @id @default(cuid())
+  insightId        String
+  insight          Insight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+
+  claim            String
+  evidence         String
+  tradeIds         String  @default("[]") // JSON array
+  traderIds        String  @default("[]") // JSON array
+
+  // Verification
+  isVerified       Boolean @default(false)
+  verificationNote String?
+
+  @@index([insightId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CORRELATION DATA
+// ═══════════════════════════════════════════════════════════════════════════
+
+model MarketCorrelation {
+  id          String   @id @default(cuid())
+  marketAId   String
+  marketBId   String
+
+  correlation Float // -1 to +1
+  windowDays  Int // 7, 14, 30
+  sampleSize  Int // Number of data points
+  pValue      Float
+
+  calculatedAt DateTime @default(now())
+
+  @@unique([marketAId, marketBId, windowDays])
+  @@index([correlation])
+  @@map("market_correlations")
+}

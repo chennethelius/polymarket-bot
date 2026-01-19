@@ -1,0 +1,45 @@
+{
+  "name": "polymarket-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "monitor": "bun run src/cli/monitor.ts",
+    "health": "bun run src/index.ts health",
+    "sync": "bun run src/index.ts sync",
+    "scheduler": "bun run src/index.ts scheduler",
+    "test:api": "bun run src/index.ts test",
+    "db:generate": "bunx prisma generate",
+    "db:push": "bunx prisma db push",
+    "db:studio": "bunx prisma studio",
+    "db:migrate": "bunx prisma migrate dev",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.0.9",
+    "@types/react": "^19.2.8",
+    "vitest": "^4.0.17"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@prisma/client": "5.22.0",
+    "@types/ws": "^8.5.13",
+    "cron": "^4.4.0",
+    "date-fns": "^4.1.0",
+    "decimal.js": "^10.6.0",
+    "hono": "^4.11.4",
+    "ioredis": "^5.9.2",
+    "next": "14",
+    "prisma": "5.22.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "ws": "^8.18.0",
+    "zod": "3.23.8"
+  }
+}
