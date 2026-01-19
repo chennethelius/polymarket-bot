@@ -30,49 +30,61 @@ export class PolymarketWebSocket extends EventEmitter {
     super();
   }
 
-  connect() {
-    if (this.ws && this.isConnected) {
-      console.log('⚠️ Already connected');
-      return;
-    }
-
-    console.log('🔌 Connecting to Polymarket WebSocket...');
-    this.ws = new WebSocket('wss://ws-subscriptions-clob.polymarket.com/ws/market');
-
-    this.ws.on('open', () => {
-      console.log('✅ WebSocket connected');
-      this.isConnected = true;
-      this.startHeartbeat();
-      this.resubscribe();
-      this.emit('connected');
-    });
-
-    this.ws.on('message', async (data: Buffer) => {
-      try {
-        const message = JSON.parse(data.toString());
-        await this.handleMessage(message);
-      } catch (err) {
-        console.error('Error handling message:', err);
+  connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.ws && this.isConnected) {
+        console.log('⚠️ Already connected');
+        resolve();
+        return;
       }
-    });
 
-    this.ws.on('error', (err) => {
-      console.error('❌ WebSocket error:', err.message);
-      this.emit('error', err);
-    });
+      console.log('🔌 Connecting to Polymarket WebSocket...');
+      this.ws = new WebSocket('wss://ws-subscriptions-clob.polymarket.com/ws/market');
 
-    this.ws.on('close', () => {
-      console.warn('🔌 WebSocket closed, reconnecting in 5s...');
-      this.isConnected = false;
-      this.stopHeartbeat();
-      
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
-      }
-      
-      this.reconnectTimeout = setTimeout(() => {
-        this.connect();
-      }, 5000);
+      // Timeout after 30 seconds
+      const timeout = setTimeout(() => {
+        reject(new Error('WebSocket connection timeout'));
+      }, 30000);
+
+      this.ws.on('open', () => {
+        clearTimeout(timeout);
+        console.log('✅ WebSocket connected');
+        this.isConnected = true;
+        this.startHeartbeat();
+        this.resubscribe();
+        this.emit('connected');
+        resolve();
+      });
+
+      this.ws.on('message', async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          await this.handleMessage(message);
+        } catch (err) {
+          console.error('Error handling message:', err);
+        }
+      });
+
+      this.ws.on('error', (err) => {
+        clearTimeout(timeout);
+        console.error('❌ WebSocket error:', err.message);
+        this.emit('error', err);
+        reject(err);
+      });
+
+      this.ws.on('close', () => {
+        console.warn('🔌 WebSocket closed, reconnecting in 5s...');
+        this.isConnected = false;
+        this.stopHeartbeat();
+        
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+        }
+        
+        this.reconnectTimeout = setTimeout(() => {
+          this.connect();
+        }, 5000);
+      });
     });
   }
 
