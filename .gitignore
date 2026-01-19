@@ -34,3 +34,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 /generated/prisma
+
+# Database files (too large for GitHub)
+*.db
+*.db-journal
+prisma/*.db
+prisma/*.db-journal
