@@ -1,0 +1,15 @@
+{
+  "id": "2026-01-19-alexandre-sarr-points-o-u-17-5-8cpmhx",
+  "marketId": "0x676d078b81497e987ad19344ca4e3569f89b4e659f91a545f8e9690d6dfa4b39",
+  "marketTitle": "Alexandre Sarr: Points O/U 17.5",
+  "tokenId": "9031636498902109489531840330955202379047865759768140186724288939684833165378",
+  "startTime": 1768858300386,
+  "status": "STOPPED",
+  "stats": {
+    "totalEvents": 0,
+    "bookSnapshots": 0,
+    "trades": 0,
+    "userTrades": 0
+  },
+  "endTime": 1768858369433
+}

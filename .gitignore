@@ -40,3 +40,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.db-journal
 prisma/*.db
 prisma/*.db-journal
+# Private keys - NEVER commit these
+*.pem
+kalshi-private-key.pem

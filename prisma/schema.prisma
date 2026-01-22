@@ -139,6 +139,134 @@ model PsychologySignal {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// RECORDING & REPLAY SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+
+model RecordingSession {
+  id            String    @id @default(cuid())
+  
+  // Market info
+  marketId      String    // Polymarket condition_id
+  marketTitle   String
+  tokenId       String    // Token being tracked
+  
+  // Session metadata
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  status        String    @default("RECORDING") // RECORDING, STOPPED, ANALYZING
+  
+  // Stats (cached)
+  totalEvents   Int       @default(0)
+  totalTrades   Int       @default(0)
+  userTrades    Int       @default(0)
+  yourPnL       Float?
+  
+  // Relations
+  events        SessionEvent[]
+  userTrades    UserTrade[]
+  analysis      SessionAnalysis?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([marketId])
+  @@index([status])
+  @@index([startTime])
+  @@map("recording_sessions")
+}
+
+model SessionEvent {
+  id          Int       @id @default(autoincrement())
+  sessionId   String
+  session     RecordingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  timestamp   BigInt    // Unix milliseconds
+  sequence    Int       // For gap detection
+  eventType   String    // "book" | "trade" | "price" | "user_order" | "game_event"
+  
+  // Event data (compressed JSON)
+  payload     String    // Gzipped JSON string
+  
+  @@index([sessionId, timestamp])
+  @@index([sessionId, sequence])
+  @@map("session_events")
+}
+
+model UserTrade {
+  id          Int       @id @default(autoincrement())
+  sessionId   String
+  session     RecordingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  timestamp   BigInt    // Unix milliseconds
+  orderId     String?   // External order ID
+  
+  // Trade details
+  direction   String    // "BUY" | "SELL"
+  price       Float
+  size        Int
+  total       Float     // price * size
+  
+  // Context (captured at trade time)
+  bookBefore  String?   // JSON snapshot
+  bookAfter   String?   // JSON snapshot
+  
+  // Outcome
+  pnl         Float?
+  pattern     String?   // Tagged pattern
+  
+  // Notes
+  notes       String?
+  
+  @@index([sessionId, timestamp])
+  @@map("user_trades")
+}
+
+model SessionAnalysis {
+  id              Int       @id @default(autoincrement())
+  sessionId       String    @unique
+  session         RecordingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  // AI-generated insights
+  aiSummary       String    // Full report
+  
+  // Performance metrics
+  winRate         Float?
+  totalTrades     Int
+  profitableTrades Int
+  avgProfit       Float?
+  maxProfit       Float?
+  maxLoss         Float?
+  
+  // Patterns detected
+  patterns        String    // JSON array of pattern objects
+  
+  // Psychology insights
+  emotionalTrades Int?      // Count of panic/FOMO trades
+  bestQuarter     String?   // Q1, Q2, Q3, Q4
+  worstQuarter    String?
+  
+  generatedAt     DateTime  @default(now())
+  
+  @@map("session_analysis")
+}
+
+model TradingPattern {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String
+  
+  // Performance tracking
+  winRate     Float     @default(0)
+  avgProfit   Float     @default(0)
+  totalTrades Int       @default(0)
+  
+  // Last updated
+  lastSeen    DateTime  @default(now())
+  
+  @@map("trading_patterns")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TRADER DATA
 // ═══════════════════════════════════════════════════════════════════════════
 

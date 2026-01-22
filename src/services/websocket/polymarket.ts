@@ -58,7 +58,12 @@ export class PolymarketWebSocket extends EventEmitter {
 
       this.ws.on('message', async (data: Buffer) => {
         try {
-          const message = JSON.parse(data.toString());
+          const text = data.toString();
+          // Skip non-JSON messages (status messages, pings, etc)
+          if (!text.startsWith('{') && !text.startsWith('[')) {
+            return;
+          }
+          const message = JSON.parse(text);
           await this.handleMessage(message);
         } catch (err) {
           console.error('Error handling message:', err);

@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polymarket Replay</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+    
+    :root {
+      /* Clean monochrome palette */
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #191919;
+      --bg-elevated: #1f1f1f;
+      --bg-hover: #262626;
+      
+      /* Minimal borders */
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      
+      /* Clean typography */
+      --text-primary: #fafafa;
+      --text-secondary: #888888;
+      --text-tertiary: #666666;
+      --text-muted: #444444;
+      
+      /* Minimal accent - just white/gray */
+      --accent: #ffffff;
+      --accent-hover: #e5e5e5;
+      --accent-muted: rgba(255, 255, 255, 0.08);
+      
+      /* Semantic colors - muted */
+      --positive: #4ade80;
+      --positive-muted: rgba(74, 222, 128, 0.1);
+      --negative: #f87171;
+      --negative-muted: rgba(248, 113, 113, 0.1);
+      --warning: #fbbf24;
+      --warning-muted: rgba(251, 191, 36, 0.1);
+      --info: #888888;
+      --info-muted: rgba(136, 136, 136, 0.1);
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+      
+      /* Radius */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .mode-switcher {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      gap: 2px;
+      border: 1px solid var(--border);
+    }
+
+    .mode-btn {
+      padding: 7px 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .mode-btn:hover { color: var(--text-secondary); background: var(--bg-hover); }
+    .mode-btn.active {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.live {
+      background: var(--positive);
+      box-shadow: 0 0 0 3px var(--positive-muted);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.95); }
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      height: calc(100vh - 56px);
+      background: var(--bg-primary);
+    }
+
+    @media (max-width: 1100px) {
+      .main-container { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+    }
+
+    .panel:first-child { border-left: none; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      min-height: 44px;
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .panel-content.no-pad { padding: 0; }
+
+    .chart-panel { grid-column: 1; border: none; }
+
+    .chart-container {
+      flex: 1;
+      position: relative;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .market-info { display: flex; flex-direction: column; gap: 4px; }
+
+    .market-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .market-meta {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+
+    .price-display { text-align: right; }
+
+    .price-main {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--positive);
+      letter-spacing: -0.02em;
+    }
+
+    .price-change { font-size: 12px; color: var(--positive); font-weight: 500; }
+    .price-change.negative { color: var(--negative); }
+
+    .chart-area {
+      flex: 1;
+      position: relative;
+      min-height: 200px;
+    }
+
+    .chart-area canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .timeline-panel {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+
+    .timeline-track {
+      height: 48px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .timeline-progress {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-muted), transparent);
+      position: absolute;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+    }
+
+    .timeline-playhead {
+      width: 2px;
+      height: 100%;
+      background: var(--accent);
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 3;
+    }
+
+    .timeline-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      z-index: 2;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+      border: 2px solid var(--bg-primary);
+    }
+
+    .timeline-marker:hover { transform: translate(-50%, -50%) scale(1.2); }
+    .timeline-marker.user_trade { background: var(--positive); }
+    .timeline-marker.game_event { background: var(--warning); }
+    .timeline-marker.price_spike { background: var(--negative); }
+
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .playback-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--bg-tertiary);
+      color: var(--text-tertiary);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all 0.15s ease;
+      border: 1px solid var(--border);
+    }
+
+    .playback-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-strong); }
+
+    .playback-btn.primary {
+      width: 40px;
+      height: 40px;
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      font-size: 14px;
+      border: none;
+    }
+
+    .playback-btn.primary:hover { background: var(--text-secondary); }
+
+    .speed-select {
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .speed-select:hover { border-color: var(--border-strong); }
+    .speed-select:focus { outline: none; border-color: var(--text-tertiary); }
+
+    .time-display {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-width: 120px;
+      text-align: center;
+      background: var(--bg-tertiary);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .orderbook-header-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 10px 16px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .orderbook-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 6px 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      position: relative;
+      transition: background 0.1s ease;
+    }
+
+    .orderbook-row:hover { background: var(--bg-hover); }
+
+    .orderbook-row .bar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      opacity: 0.08;
+      z-index: 0;
+    }
+
+    .bids .bar { background: var(--positive); right: 0; }
+    .asks .bar { background: var(--negative); left: 0; }
+    .orderbook-row span { position: relative; z-index: 1; }
+    .price-bid { color: var(--positive); }
+    .price-ask { color: var(--negative); }
+
+    .spread-row {
+      display: flex;
+      justify-content: center;
+      padding: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .session-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: var(--bg-secondary);
+    }
+
+    .session-item:hover { border-color: var(--border-strong); background: var(--bg-tertiary); }
+    .session-item.active { border-color: var(--accent); background: var(--accent-muted); }
+
+    .session-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .session-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .session-meta span { display: flex; align-items: center; gap: 6px; }
+
+    .trade-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .trade-info { display: flex; align-items: center; gap: 12px; }
+
+    .trade-side {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.03em;
+    }
+
+    .trade-side.BUY { background: var(--positive-muted); color: var(--positive); }
+    .trade-side.SELL { background: var(--negative-muted); color: var(--negative); }
+
+    .trade-details { font-family: 'IBM Plex Mono', monospace; color: var(--text-secondary); }
+    .trade-time { font-size: 11px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .stat-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .record-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      margin-bottom: 10px;
+      transition: all 0.15s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .record-input:focus { outline: none; border-color: var(--text-tertiary); background: var(--bg-elevated); }
+    .record-input::placeholder { color: var(--text-muted); }
+
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .btn-primary { background: var(--text-primary); color: var(--bg-primary); }
+    .btn-primary:hover { background: var(--text-secondary); }
+    .btn-danger { background: var(--bg-tertiary); color: var(--negative); border: 1px solid var(--negative); }
+    .btn-danger:hover { background: var(--negative-muted); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .recording-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .recording-status.active { background: var(--negative-muted); border-color: rgba(248, 113, 113, 0.3); }
+    .recording-info { flex: 1; }
+    .recording-title { font-size: 12px; font-weight: 500; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .recording-stats { font-size: 11px; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; }
+
+    .trade-entry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .trade-entry-grid select,
+    .trade-entry-grid input {
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }
+
+    .trade-entry-grid select:focus,
+    .trade-entry-grid input:focus { outline: none; border-color: var(--accent); }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-title { font-size: 14px; font-weight: 500; color: var(--text-tertiary); margin-bottom: 6px; }
+    .empty-desc { font-size: 12px; }
+
+    .hidden { display: none !important; }
+    .text-green { color: var(--positive); }
+    .text-red { color: var(--negative); }
+
+    .log-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease;
+    }
+
+    .log-panel.collapsed { transform: translateY(calc(100% - 36px)); }
+
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      min-height: 36px;
+    }
+
+    .log-header:hover { background: var(--bg-hover); }
+
+    .log-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+    }
+
+    .log-badge {
+      background: var(--negative);
+      color: white;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .log-badge.hidden { display: none; }
+
+    .log-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-actions button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      transition: all 0.15s ease;
+    }
+
+    .log-actions button:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+    .log-content {
+      flex: 1;
+      overflow-y: auto;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      padding: 10px 16px;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .log-entry:last-child { border-bottom: none; }
+
+    .log-time { color: var(--text-muted); white-space: nowrap; }
+    .log-type { min-width: 60px; font-weight: 600; text-transform: uppercase; }
+    .log-type.info { color: var(--info); }
+    .log-type.error { color: var(--negative); }
+    .log-type.warn { color: var(--warning); }
+    .log-type.success { color: var(--positive); }
+    .log-type.ws { color: var(--text-secondary); }
+    .log-msg { color: var(--text-secondary); flex: 1; word-break: break-all; }
+
+    .main-container { height: calc(100vh - 56px - 200px); }
+    .main-container.log-collapsed { height: calc(100vh - 56px - 36px); }
+
+    /* Live Markets Grid */
+    .markets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .market-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .market-card:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-tertiary);
+      transform: translateY(-1px);
+    }
+
+    .market-card.active {
+      border-color: var(--accent);
+      background: var(--accent-muted);
+    }
+
+    .market-card-title {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      color: var(--text-secondary);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .market-card-prices {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 15px;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .market-card-bid { color: var(--positive); }
+    .market-card-ask { color: var(--negative); }
+
+    .market-card-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* Live Order Book (recording mode) */
+    .live-orderbook {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+
+    .live-orderbook-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 10px 16px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .live-events-feed {
+      flex: 1;
+      overflow-y: auto;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+    }
+
+    .live-event-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; background: var(--accent-muted); }
+      to { opacity: 1; background: transparent; }
+    }
+
+    .live-event-time { color: var(--text-muted); min-width: 75px; }
+    .live-event-type { 
+      min-width: 55px; 
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .live-event-type.book { color: var(--text-secondary); }
+    .live-event-type.price { color: var(--text-primary); }
+    .live-event-type.trade { color: var(--positive); }
+    .live-event-data { color: var(--text-tertiary); flex: 1; }
+
+    /* Recording Live Panel */
+    .recording-live-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">◆</div>
+      <span>Polymarket Replay</span>
+    </div>
+    <div class="mode-switcher">
+      <button class="mode-btn active" data-mode="record">Record</button>
+      <button class="mode-btn" data-mode="replay">Replay</button>
+    </div>
+    <div class="status-indicator">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="chart-panel panel">
+      <div class="chart-header">
+        <div class="market-info">
+          <div class="market-title" id="market-title">Select a market to begin</div>
+          <div class="market-meta" id="market-meta">—</div>
+        </div>
+        <div class="price-display">
+          <div class="price-main" id="current-price">—</div>
+          <div class="price-change" id="price-change">—</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-area" id="chart-area">
+          <canvas id="price-canvas"></canvas>
+          <div class="chart-empty" id="chart-empty">
+            <span style="font-size: 32px; opacity: 0.3;">◇</span>
+            <span>No price data available</span>
+          </div>
+        </div>
+        <!-- Live events feed (shown during recording) -->
+        <div class="panel" id="live-events-panel" style="display: none; flex: 1; border-top: 1px solid var(--border); border-radius: 0; min-height: 300px; border-left: none;">
+          <div class="panel-header">
+            <span class="panel-title">Live Markets</span>
+            <span class="panel-badge" id="live-event-count" style="background: var(--bg-hover); color: var(--text-secondary); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500;">0</span>
+            <span style="margin-left: auto; font-size: 11px; color: var(--text-tertiary);" id="live-market-count">0 markets</span>
+          </div>
+          <div class="panel-content no-pad" style="display: flex; flex-direction: column;">
+            <!-- Markets Grid -->
+            <div class="markets-grid" id="live-markets-grid" style="flex: 1; overflow-y: auto;"></div>
+            <!-- Recent Events -->
+            <div style="border-top: 1px solid var(--border); max-height: 140px; overflow-y: auto;">
+              <div class="panel-header" style="padding: 8px 16px;">
+                <span class="panel-title" style="font-size: 10px;">Recent Events</span>
+              </div>
+              <div class="live-events-feed" id="live-events-feed" style="font-size: 10px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-panel" id="timeline-panel">
+          <div class="timeline-track" id="timeline-track">
+            <div class="timeline-progress" id="timeline-progress"></div>
+            <div class="timeline-playhead" id="timeline-playhead"></div>
+          </div>
+          <div class="playback-controls">
+            <button class="playback-btn" id="prev-marker" title="Previous marker">⏮</button>
+            <button class="playback-btn" id="skip-back" title="-10s">◀◀</button>
+            <button class="playback-btn primary" id="play-pause" title="Play/Pause">▶</button>
+            <button class="playback-btn" id="skip-forward" title="+10s">▶▶</button>
+            <button class="playback-btn" id="next-marker" title="Next marker">⏭</button>
+            <select class="speed-select" id="speed-select">
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+              <option value="4">4×</option>
+              <option value="8">8×</option>
+            </select>
+            <div class="time-display">
+              <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar" style="display: flex; flex-direction: column; background: var(--bg-secondary);">
+      <div id="record-panels">
+        <div class="panel" style="border-bottom: 1px solid var(--border); border-left: none;">
+          <div class="panel-header"><span class="panel-title">Recording</span></div>
+          <div class="panel-content">
+            <input type="text" class="record-input" id="market-url" placeholder="Enter Polymarket URL or Token ID...">
+            <button class="btn btn-primary" id="start-record">Start Recording</button>
+            <div class="recording-status" id="recording-status" style="margin-top: 12px;">
+              <div class="status-dot"></div>
+              <div class="recording-info">
+                <div class="recording-title" id="recording-market">Not recording</div>
+                <div class="recording-stats"><span id="recording-time">00:00:00</span> · <span id="recording-events">0</span> events</div>
+              </div>
+            </div>
+            <button class="btn btn-danger hidden" id="stop-record">Stop Recording</button>
+          </div>
+        </div>
+        
+        <!-- Live Order Book during recording -->
+        <div class="panel" id="live-orderbook-panel" style="border-bottom: 1px solid var(--border); border-left: none; height: 300px; display: none;">
+          <div class="panel-header"><span class="panel-title">Order Book</span></div>
+          <div class="panel-content no-pad" style="display: flex; flex-direction: column;">
+            <div class="orderbook-header-row"><span>Price</span><span style="text-align: center;">Size</span><span style="text-align: right;">Total</span></div>
+            <div class="asks" id="live-asks" style="flex: 1; display: flex; flex-direction: column-reverse;"></div>
+            <div class="spread-row" id="live-spread">Spread: —</div>
+            <div class="bids" id="live-bids" style="flex: 1;"></div>
+          </div>
+        </div>
+        
+        <div class="panel" style="border-bottom: 1px solid var(--border); border-left: none;">
+          <div class="panel-header"><span class="panel-title">Log Trade</span></div>
+          <div class="panel-content">
+            <div class="trade-entry-grid">
+              <select id="trade-side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
+              <input type="number" id="trade-price" placeholder="Price" step="0.01" min="0" max="1">
+              <input type="number" id="trade-size" placeholder="Size" step="1" min="1">
+              <input type="text" id="trade-notes" placeholder="Notes...">
+            </div>
+            <button class="btn btn-primary" id="log-trade" disabled>Log Trade</button>
+          </div>
+        </div>
+        <div class="panel" style="flex: 1; min-height: 0; border-left: none;">
+          <div class="panel-header"><span class="panel-title">Sessions</span></div>
+          <div class="panel-content" id="sessions-list">
+            <div class="empty-state">
+              <div class="empty-icon">◇</div>
+              <div class="empty-title">No sessions yet</div>
+              <div class="empty-desc">Start recording to create your first session</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="replay-panels" class="hidden">
+        <div class="panel" style="border-bottom: 1px solid var(--border); border-left: none;">
+          <div class="panel-header"><span class="panel-title">Statistics</span></div>
+          <div class="panel-content">
+            <div class="stats-grid">
+              <div class="stat-card"><div class="stat-value" id="stat-events">0</div><div class="stat-label">Events</div></div>
+              <div class="stat-card"><div class="stat-value" id="stat-trades">0</div><div class="stat-label">Trades</div></div>
+              <div class="stat-card"><div class="stat-value" id="stat-duration">0:00</div><div class="stat-label">Duration</div></div>
+              <div class="stat-card"><div class="stat-value" id="stat-pnl">—</div><div class="stat-label">P&L</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="border-bottom: 1px solid var(--border); border-left: none; height: 300px;">
+          <div class="panel-header"><span class="panel-title">Order Book</span></div>
+          <div class="panel-content no-pad" style="display: flex; flex-direction: column;">
+            <div class="orderbook-header-row"><span>Price</span><span style="text-align: center;">Size</span><span style="text-align: right;">Total</span></div>
+            <div class="asks" id="replay-asks" style="flex: 1; display: flex; flex-direction: column-reverse;"></div>
+            <div class="spread-row" id="spread-display">Spread: —</div>
+            <div class="bids" id="replay-bids" style="flex: 1;"></div>
+          </div>
+        </div>
+        <div class="panel" style="border-bottom: 1px solid var(--border); border-left: none;">
+          <div class="panel-header"><span class="panel-title">Your Trades</span></div>
+          <div class="panel-content" id="trades-list" style="max-height: 180px; overflow-y: auto;">
+            <div class="empty-state" style="padding: 24px;"><div class="empty-desc">No trades in this session</div></div>
+          </div>
+        </div>
+        <div class="panel" style="flex: 1; min-height: 0; border-left: none;">
+          <div class="panel-header"><span class="panel-title">Sessions</span></div>
+          <div class="panel-content" id="replay-sessions-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log-panel collapsed" id="log-panel">
+    <div class="log-header" id="log-header">
+      <div class="log-title">
+        <span>Debug Console</span>
+        <span class="log-badge hidden" id="error-count">0</span>
+      </div>
+      <div class="log-actions">
+        <button id="clear-log">Clear</button>
+        <button id="toggle-log">▲</button>
+      </div>
+    </div>
+    <div class="log-content" id="log-content"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3001/api';
+    
+    // Debug logging
+    const logs = [];
+    let errorCount = 0;
+    
+    function log(type, msg, data = null) {
+      const time = new Date().toLocaleTimeString();
+      const entry = { time, type, msg, data };
+      logs.push(entry);
+      if (logs.length > 200) logs.shift();
+      if (type === 'error') {
+        errorCount++;
+        const badge = document.getElementById('error-count');
+        badge.textContent = errorCount;
+        badge.classList.remove('hidden');
+      }
+      renderLog();
+      console.log(`[${type.toUpperCase()}] ${msg}`, data || '');
+    }
+    
+    function renderLog() {
+      const container = document.getElementById('log-content');
+      container.innerHTML = logs.map(l => `
+        <div class="log-entry">
+          <span class="log-time">${l.time}</span>
+          <span class="log-type ${l.type}">${l.type.toUpperCase()}</span>
+          <span class="log-msg">${l.msg}${l.data ? ' ' + JSON.stringify(l.data) : ''}</span>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    document.getElementById('log-header').addEventListener('click', () => {
+      document.getElementById('log-panel').classList.toggle('collapsed');
+      document.querySelector('.main-container').classList.toggle('log-collapsed');
+      document.getElementById('toggle-log').textContent = document.getElementById('log-panel').classList.contains('collapsed') ? '▲' : '▼';
+    });
+    
+    document.getElementById('clear-log').addEventListener('click', (e) => {
+      e.stopPropagation();
+      logs.length = 0;
+      errorCount = 0;
+      document.getElementById('error-count').classList.add('hidden');
+      renderLog();
+    });
+    
+    log('info', 'Dashboard initialized');
+    
+    // Live data state
+    let liveEventSource = null;
+    let liveEvents = [];
+    let liveOrderBook = { bids: [], asks: [] };
+    let livePrices = [];
+    let liveStartTime = null;
+    let liveMarkets = {}; // Track all markets by token ID
+    let selectedLiveMarket = null; // Currently selected market for chart
+    
+    let state = {
+      mode: 'record',
+      recording: { active: false, sessionId: null, startTime: null, eventCount: 0 },
+      replay: { sessionId: null, isPlaying: false, currentTime: 0, startTime: 0, endTime: 0, duration: 0, speed: 1, events: [], userTrades: [], markers: [] },
+      sessions: [],
+    };
+
+    function formatTime(ms) {
+      if (!ms || isNaN(ms)) return '0:00';
+      const seconds = Math.floor(ms / 1000) % 60;
+      const minutes = Math.floor(ms / 60000) % 60;
+      const hours = Math.floor(ms / 3600000);
+      return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function formatPrice(price) { return `${(price * 100).toFixed(1)}¢`; }
+    function formatPriceShort(price) { return `${(price * 100).toFixed(0)}¢`; }
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.mode = btn.dataset.mode;
+        document.getElementById('record-panels').classList.toggle('hidden', state.mode !== 'record');
+        document.getElementById('replay-panels').classList.toggle('hidden', state.mode !== 'replay');
+        if (state.mode === 'replay') loadSessions();
+      });
+    });
+
+    async function loadSessions() {
+      log('info', 'Loading sessions...');
+      try {
+        const response = await fetch(`${API_BASE}/sessions`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        state.sessions = await response.json();
+        log('success', `Loaded ${state.sessions.length} sessions`);
+        renderSessions();
+      } catch (error) {
+        log('error', 'Failed to load sessions', error.message);
+        state.sessions = [];
+        renderSessions();
+      }
+    }
+
+    function renderSessions() {
+      ['sessions-list', 'replay-sessions-list'].forEach(id => {
+        const container = document.getElementById(id);
+        if (!container) return;
+        if (state.sessions.length === 0) {
+          container.innerHTML = `<div class="empty-state"><div class="empty-icon">📼</div><div class="empty-title">No sessions yet</div><div class="empty-desc">Start recording to create one</div></div>`;
+          return;
+        }
+        container.innerHTML = state.sessions.map(session => {
+          const duration = session.duration || (session.endTime - session.startTime) || 0;
+          const eventCount = session.stats?.totalEvents || 0;
+          return `
+          <div class="session-item ${state.replay.sessionId === session.id ? 'active' : ''}" data-session-id="${session.id}">
+            <div class="session-title">${session.marketTitle || 'Unknown Market'}</div>
+            <div class="session-meta">
+              <span>📅 ${new Date(session.startTime).toLocaleDateString()}</span>
+              <span>⏱ ${formatTime(duration)}</span>
+              <span>📊 ${eventCount} events</span>
+            </div>
+          </div>
+        `}).join('');
+        container.querySelectorAll('.session-item').forEach(item => {
+          item.addEventListener('click', () => loadSession(item.dataset.sessionId));
+        });
+      });
+    }
+
+    async function loadSession(sessionId) {
+      log('info', `Loading session: ${sessionId}`);
+      try {
+        document.getElementById('status-text').textContent = 'Loading...';
+        const response = await fetch(`${API_BASE}/sessions/${sessionId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const data = await response.json();
+        log('success', `Session loaded: ${data.marketTitle || 'Unknown'}`, { events: data.events?.length || 0, trades: data.userTrades?.length || 0 });
+        state.replay = {
+          sessionId, isPlaying: false, currentTime: data.startTime, startTime: data.startTime, endTime: data.endTime,
+          duration: data.duration || (data.endTime - data.startTime), speed: 1, events: data.events || [], userTrades: data.userTrades || [], markers: data.markers || [],
+        };
+        document.getElementById('market-title').textContent = data.marketTitle || 'Unknown';
+        document.getElementById('market-meta').textContent = `${new Date(data.startTime).toLocaleString()} · ${formatTime(state.replay.duration)}`;
+        renderReplayUI();
+        renderSessions();
+        seekTo(state.replay.startTime);
+        document.getElementById('status-text').textContent = 'Session loaded';
+      } catch (error) {
+        log('error', `Failed to load session: ${sessionId}`, error.message);
+        document.getElementById('status-text').textContent = 'Failed to load';
+      }
+    }
+
+    function renderReplayUI() {
+      document.getElementById('stat-events').textContent = state.replay.events.length;
+      document.getElementById('stat-trades').textContent = state.replay.userTrades.length;
+      document.getElementById('stat-duration').textContent = formatTime(state.replay.duration);
+      document.getElementById('total-time').textContent = formatTime(state.replay.duration);
+
+      let pnl = 0;
+      state.replay.userTrades.forEach(t => { pnl += t.side === 'BUY' ? -(t.price * t.size) : (t.price * t.size); });
+      const pnlEl = document.getElementById('stat-pnl');
+      pnlEl.textContent = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+      pnlEl.className = `stat-value ${pnl >= 0 ? 'text-green' : 'text-red'}`;
+
+      const track = document.getElementById('timeline-track');
+      track.querySelectorAll('.timeline-marker').forEach(m => m.remove());
+      state.replay.markers.forEach(marker => {
+        if (state.replay.duration === 0) return;
+        const progress = (marker.timestamp - state.replay.startTime) / state.replay.duration;
+        const el = document.createElement('div');
+        el.className = `timeline-marker ${marker.type}`;
+        el.style.left = `${Math.max(0, Math.min(100, progress * 100))}%`;
+        el.title = marker.label;
+        track.appendChild(el);
+      });
+
+      const tradesList = document.getElementById('trades-list');
+      tradesList.innerHTML = state.replay.userTrades.length === 0 
+        ? `<div class="empty-state" style="padding: 20px;"><div class="empty-desc">No trades</div></div>`
+        : state.replay.userTrades.map(t => `
+          <div class="trade-item">
+            <div class="trade-info"><span class="trade-side ${t.side}">${t.side}</span><span class="trade-details">${t.size} @ ${formatPrice(t.price)}</span></div>
+            <span class="trade-time">${formatTime(t.timestamp - state.replay.startTime)}</span>
+          </div>
+        `).join('');
+      drawPriceChart();
+    }
+
+    function drawPriceChart() {
+      const canvas = document.getElementById('price-canvas');
+      const ctx = canvas.getContext('2d');
+      const container = document.getElementById('chart-area');
+      const emptyEl = document.getElementById('chart-empty');
+      canvas.width = container.offsetWidth * 2;
+      canvas.height = container.offsetHeight * 2;
+      canvas.style.width = container.offsetWidth + 'px';
+      canvas.style.height = container.offsetHeight + 'px';
+      ctx.scale(2, 2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const prices = [];
+      for (const event of state.replay.events) {
+        if (event.type === 'book' && event.data.bids?.length && event.data.asks?.length) {
+          prices.push({ time: event.timestamp, price: (event.data.bids[0][0] + event.data.asks[0][0]) / 2 });
+        } else if (event.type === 'book' && event.data.bids?.length) {
+          prices.push({ time: event.timestamp, price: event.data.bids[0][0] });
+        } else if (event.type === 'book' && event.data.asks?.length) {
+          prices.push({ time: event.timestamp, price: event.data.asks[0][0] });
+        }
+      }
+      
+      log('info', `Chart: ${prices.length} price points from ${state.replay.events.length} events`);
+      
+      if (prices.length < 1) { 
+        emptyEl.innerHTML = '<span style="font-size: 32px; opacity: 0.3;">◇</span><span>No price data available</span>';
+        emptyEl.classList.remove('hidden'); 
+        return; 
+      }
+      
+      if (prices.length === 1) {
+        // Show single price point
+        emptyEl.innerHTML = `<span style="font-size: 32px; opacity: 0.3;">◇</span><span>Single snapshot: ${formatPrice(prices[0].price)}</span>`;
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      
+      emptyEl.classList.add('hidden');
+      
+      const width = container.offsetWidth, height = container.offsetHeight;
+      const padding = { top: 24, right: 65, bottom: 32, left: 24 };
+      const minPrice = Math.min(...prices.map(p => p.price)), maxPrice = Math.max(...prices.map(p => p.price));
+      const priceRange = maxPrice - minPrice || 0.1;
+      
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (i / 4) * (height - padding.top - padding.bottom);
+        ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(width - padding.right, y); ctx.stroke();
+        ctx.fillStyle = '#666666'; ctx.font = '10px IBM Plex Mono'; ctx.textAlign = 'left';
+        ctx.fillText(formatPriceShort(maxPrice - (i / 4) * priceRange), width - padding.right + 10, y + 4);
+      }
+      
+      ctx.beginPath();
+      prices.forEach((point, i) => {
+        const x = padding.left + ((point.time - state.replay.startTime) / state.replay.duration) * (width - padding.left - padding.right);
+        const y = padding.top + (1 - (point.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.lineTo(padding.left + (width - padding.left - padding.right), height - padding.bottom);
+      ctx.lineTo(padding.left, height - padding.bottom);
+      ctx.closePath();
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient; ctx.fill();
+      
+      ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.beginPath();
+      prices.forEach((point, i) => {
+        const x = padding.left + ((point.time - state.replay.startTime) / state.replay.duration) * (width - padding.left - padding.right);
+        const y = padding.top + (1 - (point.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      
+      state.replay.userTrades.forEach(trade => {
+        const x = padding.left + ((trade.timestamp - state.replay.startTime) / state.replay.duration) * (width - padding.left - padding.right);
+        const y = padding.top + (1 - (trade.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        ctx.fillStyle = trade.side === 'BUY' ? '#4ade80' : '#f87171';
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 2; ctx.stroke();
+      });
+    }
+
+    function seekTo(timestamp) {
+      if (state.replay.duration === 0) return;
+      timestamp = Math.max(state.replay.startTime, Math.min(state.replay.endTime, timestamp));
+      state.replay.currentTime = timestamp;
+      const progress = (timestamp - state.replay.startTime) / state.replay.duration;
+      document.getElementById('timeline-progress').style.width = `${progress * 100}%`;
+      document.getElementById('timeline-playhead').style.left = `${progress * 100}%`;
+      document.getElementById('current-time').textContent = formatTime(timestamp - state.replay.startTime);
+      updateOrderBook(timestamp);
+      updateCurrentPrice(timestamp);
+    }
+
+    function updateOrderBook(timestamp) {
+      let lastBook = null;
+      for (const event of state.replay.events) { if (event.timestamp > timestamp) break; if (event.type === 'book') lastBook = event; }
+      if (!lastBook) return;
+      const bids = lastBook.data.bids || [], asks = lastBook.data.asks || [];
+      const maxSize = Math.max(...bids.slice(0, 8).map(b => b[1]), ...asks.slice(0, 8).map(a => a[1]), 1);
+      
+      let cumBid = 0;
+      document.getElementById('replay-bids').innerHTML = bids.slice(0, 8).map(([price, size]) => {
+        cumBid += size;
+        return `<div class="orderbook-row"><div class="bar" style="width: ${(size / maxSize) * 100}%"></div><span class="price-bid">${formatPrice(price)}</span><span style="text-align: center;">${size.toFixed(0)}</span><span style="text-align: right;">${cumBid.toFixed(0)}</span></div>`;
+      }).join('');
+      
+      let cumAsk = 0;
+      document.getElementById('replay-asks').innerHTML = asks.slice(0, 8).reverse().map(([price, size]) => {
+        cumAsk += size;
+        return `<div class="orderbook-row"><div class="bar" style="width: ${(size / maxSize) * 100}%"></div><span class="price-ask">${formatPrice(price)}</span><span style="text-align: center;">${size.toFixed(0)}</span><span style="text-align: right;">${cumAsk.toFixed(0)}</span></div>`;
+      }).join('');
+      
+      if (bids.length > 0 && asks.length > 0) document.getElementById('spread-display').textContent = `Spread: ${formatPrice(asks[0][0] - bids[0][0])}`;
+    }
+
+    function updateCurrentPrice(timestamp) {
+      let lastBook = null;
+      for (const event of state.replay.events) { if (event.timestamp > timestamp) break; if (event.type === 'book') lastBook = event; }
+      if (!lastBook || !lastBook.data.bids?.length || !lastBook.data.asks?.length) return;
+      const midPrice = (lastBook.data.bids[0][0] + lastBook.data.asks[0][0]) / 2;
+      document.getElementById('current-price').textContent = formatPrice(midPrice);
+      
+      let firstBook = null;
+      for (const event of state.replay.events) { if (event.type === 'book') { firstBook = event; break; } }
+      if (firstBook && firstBook.data.bids?.length && firstBook.data.asks?.length) {
+        const startPrice = (firstBook.data.bids[0][0] + firstBook.data.asks[0][0]) / 2;
+        const change = ((midPrice - startPrice) / startPrice) * 100;
+        const changeEl = document.getElementById('price-change');
+        changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+        changeEl.className = `price-change ${change < 0 ? 'negative' : ''}`;
+      }
+    }
+
+    let playbackInterval = null;
+    document.getElementById('play-pause').addEventListener('click', () => state.replay.isPlaying ? pausePlayback() : startPlayback());
+    document.getElementById('skip-back').addEventListener('click', () => seekTo(state.replay.currentTime - 10000));
+    document.getElementById('skip-forward').addEventListener('click', () => seekTo(state.replay.currentTime + 10000));
+    document.getElementById('speed-select').addEventListener('change', (e) => { state.replay.speed = parseFloat(e.target.value); });
+    document.getElementById('timeline-track').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      seekTo(state.replay.startTime + ((e.clientX - rect.left) / rect.width) * state.replay.duration);
+    });
+
+    function startPlayback() {
+      if (!state.replay.sessionId) return;
+      state.replay.isPlaying = true;
+      document.getElementById('play-pause').textContent = '⏸';
+      document.getElementById('status-dot').classList.add('live');
+      document.getElementById('status-text').textContent = 'Playing';
+      let lastTick = Date.now();
+      playbackInterval = setInterval(() => {
+        const now = Date.now();
+        state.replay.currentTime += (now - lastTick) * state.replay.speed;
+        lastTick = now;
+        if (state.replay.currentTime >= state.replay.endTime) { state.replay.currentTime = state.replay.endTime; pausePlayback(); }
+        seekTo(state.replay.currentTime);
+      }, 100);
+    }
+
+    function pausePlayback() {
+      state.replay.isPlaying = false;
+      document.getElementById('play-pause').textContent = '▶';
+      document.getElementById('status-dot').classList.remove('live');
+      document.getElementById('status-text').textContent = 'Paused';
+      if (playbackInterval) { clearInterval(playbackInterval); playbackInterval = null; }
+    }
+
+    document.getElementById('start-record').addEventListener('click', async () => {
+      const marketUrl = document.getElementById('market-url').value.trim();
+      if (!marketUrl) { log('warn', 'No market URL provided'); alert('Please enter a Polymarket URL or Token ID'); return; }
+      log('info', `Starting recording for: ${marketUrl}`);
+      try {
+        const response = await fetch(`${API_BASE}/recording/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ marketUrl }) });
+        const data = await response.json();
+        log('info', 'Server response', data);
+        if (data.success) {
+          log('success', `Recording started! Session: ${data.sessionId}`);
+          state.recording.active = true;
+          state.recording.sessionId = data.sessionId;
+          state.recording.startTime = Date.now();
+          updateRecordingUI();
+          startRecordingTimer();
+        } else {
+          log('error', 'Recording failed', data.error || 'Unknown error');
+          alert(data.error || 'Failed to start recording');
+        }
+      } catch (error) {
+        log('error', 'Recording request failed', error.message);
+        alert('Failed to start: ' + error.message);
+      }
+    });
+
+    document.getElementById('stop-record').addEventListener('click', async () => {
+      log('info', 'Stopping recording...');
+      try {
+        const response = await fetch(`${API_BASE}/recording/stop`, { method: 'POST' });
+        const data = await response.json();
+        log('success', 'Recording stopped', data);
+        state.recording.active = false;
+        stopRecordingTimer();
+        updateRecordingUI();
+        loadSessions();
+      } catch (error) {
+        log('error', 'Failed to stop recording', error.message);
+      }
+    });
+
+    let recordingTimer = null;
+    function startRecordingTimer() {
+      recordingTimer = setInterval(async () => {
+        const elapsed = Date.now() - state.recording.startTime;
+        document.getElementById('recording-time').textContent = formatTime(elapsed);
+        // Poll for event count
+        try {
+          const res = await fetch(`${API_BASE}/recording/status`);
+          const status = await res.json();
+          if (status.eventCount !== undefined) {
+            document.getElementById('recording-events').textContent = status.eventCount;
+          }
+        } catch (e) {}
+      }, 1000);
+    }
+    function stopRecordingTimer() {
+      if (recordingTimer) { clearInterval(recordingTimer); recordingTimer = null; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LIVE DATA STREAMING
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    function connectLiveStream() {
+      if (liveEventSource) {
+        liveEventSource.close();
+      }
+      
+      log('info', 'Connecting to live stream...');
+      liveEventSource = new EventSource(`${API_BASE}/recording/live`);
+      
+      liveEventSource.addEventListener('connected', (e) => {
+        log('success', 'Live stream connected', JSON.parse(e.data));
+      });
+      
+      liveEventSource.addEventListener('status', (e) => {
+        const data = JSON.parse(e.data);
+        log('info', `Recording status: ${data.type}`, data);
+        
+        if (data.type === 'started') {
+          document.getElementById('market-title').textContent = data.marketTitle || 'Recording...';
+          document.getElementById('market-meta').textContent = 'Live recording in progress';
+          liveStartTime = Date.now();
+          livePrices = [];
+          liveEvents = [];
+          liveMarkets = {}; // Reset markets
+          selectedLiveMarket = null;
+        }
+      });
+      
+      liveEventSource.addEventListener('event', (e) => {
+        const event = JSON.parse(e.data);
+        handleLiveEvent(event);
+      });
+      
+      liveEventSource.onerror = (e) => {
+        log('warn', 'Live stream error, reconnecting...');
+        setTimeout(() => {
+          if (state.recording.active) {
+            connectLiveStream();
+          }
+        }, 3000);
+      };
+    }
+    
+    function disconnectLiveStream() {
+      if (liveEventSource) {
+        liveEventSource.close();
+        liveEventSource = null;
+      }
+    }
+    
+    function handleLiveEvent(event) {
+      // Add to events list (keep last 100)
+      liveEvents.push(event);
+      if (liveEvents.length > 100) liveEvents.shift();
+      
+      // Update event count display
+      document.getElementById('live-event-count').textContent = liveEvents.length;
+      
+      // Handle different event types
+      if (event.type === 'book') {
+        const tokenId = event.data.asset_id;
+        
+        // Track this market
+        if (!liveMarkets[tokenId]) {
+          liveMarkets[tokenId] = {
+            tokenId,
+            bids: [],
+            asks: [],
+            prices: [],
+            lastUpdate: 0,
+          };
+        }
+        
+        const market = liveMarkets[tokenId];
+        market.bids = event.data.bids || [];
+        market.asks = event.data.asks || [];
+        market.lastUpdate = event.timestamp;
+        
+        // Extract mid price
+        if (market.bids.length && market.asks.length) {
+          const midPrice = (market.bids[0][0] + market.asks[0][0]) / 2;
+          market.prices.push({ time: event.timestamp, price: midPrice });
+          if (market.prices.length > 200) market.prices.shift();
+          market.midPrice = midPrice;
+        }
+        
+        // Update market count
+        document.getElementById('live-market-count').textContent = `${Object.keys(liveMarkets).length} markets`;
+        
+        // If this is the selected market, update order book and chart
+        if (!selectedLiveMarket || selectedLiveMarket === tokenId) {
+          if (!selectedLiveMarket) {
+            selectedLiveMarket = tokenId;
+          }
+          liveOrderBook.bids = market.bids;
+          liveOrderBook.asks = market.asks;
+          livePrices = market.prices;
+          updateLiveOrderBook();
+          
+          // Update current price display
+          if (market.midPrice) {
+            document.getElementById('current-price').textContent = formatPrice(market.midPrice);
+            
+            // Update price change
+            if (market.prices.length > 1) {
+              const startPrice = market.prices[0].price;
+              const change = ((market.midPrice - startPrice) / startPrice) * 100;
+              const changeEl = document.getElementById('price-change');
+              changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+              changeEl.className = `price-change ${change < 0 ? 'negative' : ''}`;
+            }
+          }
+          
+          // Redraw live chart
+          drawLiveChart();
+        }
+        
+        // Update markets grid
+        renderLiveMarketsGrid();
+      }
+      
+      // Update live events feed
+      renderLiveEventsFeed();
+    }
+    
+    function updateLiveOrderBook() {
+      const bids = liveOrderBook.bids || [];
+      const asks = liveOrderBook.asks || [];
+      const maxSize = Math.max(...bids.slice(0, 8).map(b => b[1]), ...asks.slice(0, 8).map(a => a[1]), 1);
+      
+      let cumBid = 0;
+      document.getElementById('live-bids').innerHTML = bids.slice(0, 8).map(([price, size]) => {
+        cumBid += size;
+        return `<div class="orderbook-row"><div class="bar" style="width: ${(size / maxSize) * 100}%"></div><span class="price-bid">${formatPrice(price)}</span><span style="text-align: center;">${size.toFixed(0)}</span><span style="text-align: right;">${cumBid.toFixed(0)}</span></div>`;
+      }).join('');
+      
+      let cumAsk = 0;
+      document.getElementById('live-asks').innerHTML = asks.slice(0, 8).reverse().map(([price, size]) => {
+        cumAsk += size;
+        return `<div class="orderbook-row"><div class="bar" style="width: ${(size / maxSize) * 100}%"></div><span class="price-ask">${formatPrice(price)}</span><span style="text-align: center;">${size.toFixed(0)}</span><span style="text-align: right;">${cumAsk.toFixed(0)}</span></div>`;
+      }).join('');
+      
+      if (bids.length > 0 && asks.length > 0) {
+        document.getElementById('live-spread').textContent = `Spread: ${formatPrice(asks[0][0] - bids[0][0])}`;
+      }
+    }
+    
+    function renderLiveEventsFeed() {
+      const feed = document.getElementById('live-events-feed');
+      const recentEvents = liveEvents.slice(-30).reverse();
+      
+      feed.innerHTML = recentEvents.map(event => {
+        let dataStr = '';
+        if (event.type === 'book') {
+          const bids = event.data.bids?.length || 0;
+          const asks = event.data.asks?.length || 0;
+          const bestBid = event.data.bids?.[0]?.[0];
+          const bestAsk = event.data.asks?.[0]?.[0];
+          dataStr = `Bids: ${bids}, Asks: ${asks}`;
+          if (bestBid && bestAsk) {
+            dataStr += ` | Best: ${formatPrice(bestBid)} / ${formatPrice(bestAsk)}`;
+          }
+        } else if (event.type === 'price') {
+          dataStr = `Price: ${formatPrice(event.data.price)}`;
+        } else if (event.type === 'trade') {
+          dataStr = `${event.data.side} ${event.data.size} @ ${formatPrice(event.data.price)}`;
+        }
+        
+        const time = new Date(event.timestamp).toLocaleTimeString();
+        return `
+          <div class="live-event-item">
+            <span class="live-event-time">${time}</span>
+            <span class="live-event-type ${event.type}">${event.type}</span>
+            <span class="live-event-data">${dataStr}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function renderLiveMarketsGrid() {
+      const grid = document.getElementById('live-markets-grid');
+      const markets = Object.values(liveMarkets);
+      
+      // Sort by spread (most liquid first)
+      markets.sort((a, b) => {
+        const spreadA = a.asks[0]?.[0] - a.bids[0]?.[0] || 1;
+        const spreadB = b.asks[0]?.[0] - b.bids[0]?.[0] || 1;
+        return spreadA - spreadB;
+      });
+      
+      grid.innerHTML = markets.map(market => {
+        const bestBid = market.bids[0]?.[0] || 0;
+        const bestAsk = market.asks[0]?.[0] || 1;
+        const spread = bestAsk - bestBid;
+        const midPrice = market.midPrice || ((bestBid + bestAsk) / 2);
+        const isSelected = selectedLiveMarket === market.tokenId;
+        
+        // Determine if it's "yes" or "no" side (mid > 0.5 = likely yes)
+        const isYesSide = midPrice > 0.5;
+        const displayPrice = isYesSide ? midPrice : (1 - midPrice);
+        
+        // Get price change
+        let changeStr = '';
+        let changeClass = '';
+        if (market.prices.length > 1) {
+          const startP = market.prices[0].price;
+          const change = ((midPrice - startP) / startP) * 100;
+          changeStr = `${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`;
+          changeClass = change >= 0 ? 'text-green' : 'text-red';
+        }
+        
+        // Shorten token ID for display
+        const shortId = market.tokenId.slice(0, 8) + '...' + market.tokenId.slice(-4);
+        
+        return `
+          <div class="market-card ${isSelected ? 'active' : ''}" data-token="${market.tokenId}" onclick="selectLiveMarket('${market.tokenId}')">
+            <div class="market-card-title">${shortId}</div>
+            <div class="market-card-prices">
+              <span class="market-card-bid">${formatPrice(bestBid)}</span>
+              <span style="color: var(--text-muted);">—</span>
+              <span class="market-card-ask">${formatPrice(bestAsk)}</span>
+            </div>
+            <div class="market-card-stats">
+              <span>Mid: ${formatPrice(midPrice)}</span>
+              <span class="${changeClass}">${changeStr}</span>
+              <span>Spread: ${formatPrice(spread)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function selectLiveMarket(tokenId) {
+      selectedLiveMarket = tokenId;
+      const market = liveMarkets[tokenId];
+      if (market) {
+        liveOrderBook.bids = market.bids;
+        liveOrderBook.asks = market.asks;
+        livePrices = market.prices;
+        updateLiveOrderBook();
+        drawLiveChart();
+        
+        if (market.midPrice) {
+          document.getElementById('current-price').textContent = formatPrice(market.midPrice);
+        }
+        
+        // Update title to show token
+        const shortId = tokenId.slice(0, 12) + '...';
+        document.getElementById('market-meta').textContent = `Token: ${shortId}`;
+      }
+      renderLiveMarketsGrid();
+    }
+    
+    function drawLiveChart() {
+      if (livePrices.length < 2) return;
+      
+      const canvas = document.getElementById('price-canvas');
+      const ctx = canvas.getContext('2d');
+      const container = document.getElementById('chart-area');
+      const emptyEl = document.getElementById('chart-empty');
+      
+      canvas.width = container.offsetWidth * 2;
+      canvas.height = container.offsetHeight * 2;
+      canvas.style.width = container.offsetWidth + 'px';
+      canvas.style.height = container.offsetHeight + 'px';
+      ctx.scale(2, 2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      emptyEl.classList.add('hidden');
+      
+      const width = container.offsetWidth, height = container.offsetHeight;
+      const padding = { top: 24, right: 65, bottom: 32, left: 24 };
+      const minPrice = Math.min(...livePrices.map(p => p.price));
+      const maxPrice = Math.max(...livePrices.map(p => p.price));
+      const priceRange = maxPrice - minPrice || 0.01;
+      const timeRange = livePrices[livePrices.length - 1].time - livePrices[0].time || 1;
+      
+      // Grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (i / 4) * (height - padding.top - padding.bottom);
+        ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(width - padding.right, y); ctx.stroke();
+        ctx.fillStyle = '#666666'; ctx.font = '10px IBM Plex Mono'; ctx.textAlign = 'left';
+        ctx.fillText(formatPriceShort(maxPrice - (i / 4) * priceRange), width - padding.right + 10, y + 4);
+      }
+      
+      // Line
+      ctx.beginPath();
+      livePrices.forEach((point, i) => {
+        const x = padding.left + ((point.time - livePrices[0].time) / timeRange) * (width - padding.left - padding.right);
+        const y = padding.top + (1 - (point.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      
+      // Fill
+      ctx.lineTo(padding.left + (width - padding.left - padding.right), height - padding.bottom);
+      ctx.lineTo(padding.left, height - padding.bottom);
+      ctx.closePath();
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient; ctx.fill();
+      
+      // Stroke line
+      ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.beginPath();
+      livePrices.forEach((point, i) => {
+        const x = padding.left + ((point.time - livePrices[0].time) / timeRange) * (width - padding.left - padding.right);
+        const y = padding.top + (1 - (point.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      
+      // Current price indicator
+      if (livePrices.length > 0) {
+        const lastPoint = livePrices[livePrices.length - 1];
+        const x = width - padding.right;
+        const y = padding.top + (1 - (lastPoint.price - minPrice) / priceRange) * (height - padding.top - padding.bottom);
+        ctx.fillStyle = '#fafafa';
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+    
+    function showLivePanels(show) {
+      document.getElementById('live-orderbook-panel').style.display = show ? 'flex' : 'none';
+      document.getElementById('live-events-panel').style.display = show ? 'flex' : 'none';
+      document.getElementById('timeline-panel').style.display = show ? 'none' : 'block';
+      // Hide the empty chart message during recording
+      if (show) {
+        document.getElementById('chart-empty').classList.add('hidden');
+        // Resize chart area to make room for markets grid
+        document.getElementById('chart-area').style.maxHeight = '200px';
+      } else {
+        document.getElementById('chart-area').style.maxHeight = '';
+      }
+    }
+
+    function updateRecordingUI() {
+      const statusEl = document.getElementById('recording-status');
+      const startBtn = document.getElementById('start-record');
+      const stopBtn = document.getElementById('stop-record');
+      const logBtn = document.getElementById('log-trade');
+      if (state.recording.active) {
+        statusEl.classList.add('active');
+        document.getElementById('recording-market').textContent = 'Recording...';
+        startBtn.classList.add('hidden'); stopBtn.classList.remove('hidden'); logBtn.disabled = false;
+        document.getElementById('status-dot').classList.add('live');
+        document.getElementById('status-text').textContent = 'Recording';
+        showLivePanels(true);
+        connectLiveStream();
+        // Reset live data
+        liveMarkets = {};
+        liveEvents = [];
+        livePrices = [];
+        selectedLiveMarket = null;
+      } else {
+        statusEl.classList.remove('active');
+        document.getElementById('recording-market').textContent = 'Not recording';
+        document.getElementById('recording-time').textContent = '00:00:00';
+        document.getElementById('recording-events').textContent = '0';
+        startBtn.classList.remove('hidden'); stopBtn.classList.add('hidden'); logBtn.disabled = true;
+        document.getElementById('status-dot').classList.remove('live');
+        document.getElementById('status-text').textContent = 'Ready';
+        showLivePanels(false);
+        disconnectLiveStream();
+      }
+    }
+
+    // Check API health on load
+    async function checkAPIHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/sessions`);
+        if (res.ok) {
+          log('success', 'API server connected', { url: API_BASE });
+        } else {
+          log('error', 'API server returned error', { status: res.status });
+        }
+      } catch (e) {
+        log('error', 'Cannot connect to API server', { url: API_BASE, error: e.message });
+      }
+    }
+    
+    checkAPIHealth();
+    loadSessions();
+    window.addEventListener('resize', () => { if (state.replay.events.length > 0) drawPriceChart(); });
+    
+    // Also check if already recording
+    async function checkRecordingStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/recording/status`);
+        const status = await res.json();
+        if (status.isRecording) {
+          log('info', 'Active recording found', status);
+          state.recording.active = true;
+          state.recording.sessionId = status.sessionId;
+          state.recording.startTime = Date.now() - (status.duration || 0);
+          updateRecordingUI();
+          startRecordingTimer();
+        }
+      } catch (e) {}
+    }
+    checkRecordingStatus();
+  </script>
+</body>
+</html>

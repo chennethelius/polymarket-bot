@@ -1,0 +1,16 @@
+{
+  "id": "2026-01-19-clippers-vs-wizards-wgdth2",
+  "marketId": "161587",
+  "marketTitle": "Clippers vs. Wizards",
+  "tokenId": "9031636498902109489531840330955202379047865759768140186724288939684833165378",
+  "startTime": 1768858436567,
+  "status": "STOPPED",
+  "stats": {
+    "totalEvents": 0,
+    "bookSnapshots": 0,
+    "trades": 0,
+    "userTrades": 0
+  },
+  "eventCount": 300,
+  "endTime": 1768862750741
+}

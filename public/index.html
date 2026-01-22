@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Terminal</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --border: #262626;
+      --border-active: #404040;
+      --border-resize: #3b82f6;
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1a1;
+      --text-muted: #525252;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-blue: #3b82f6;
+      --accent-yellow: #eab308;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Layout */
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .logo span { color: var(--accent-green); }
+
+    .input-group {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--border-active);
+    }
+
+    input::placeholder { color: var(--text-muted); }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      background: var(--accent-green);
+      color: #000;
+    }
+
+    .btn:hover { opacity: 0.9; }
+
+    .status {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Mode Toggle */
+    .mode-toggle {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .mode-btn.active.live { color: var(--accent-green); }
+    .mode-btn.active.analysis { color: var(--accent-blue); }
+
+    .mode-btn:hover:not(.active) {
+      color: var(--text-secondary);
+    }
+
+    /* Analysis Controls */
+    .analysis-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-controls.visible { display: flex; }
+
+    .file-input-wrapper {
+      position: relative;
+    }
+
+    .file-input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-label {
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .file-label:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .file-label.loaded {
+      border-style: solid;
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    /* Playback Controls */
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .playback-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .playback-btn:hover { color: var(--text-primary); }
+    .playback-btn.active { color: var(--accent-blue); background: rgba(59, 130, 246, 0.2); }
+
+    .speed-select {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .timeline-slider {
+      flex: 1;
+      min-width: 100px;
+      max-width: 200px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .timeline-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .timeline-time {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      min-width: 80px;
+    }
+
+    /* Team selector for analysis */
+    .team-select {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11px;
+    }
+
+    /* Connection Log */
+    .connection-log {
+      position: fixed;
+      bottom: 8px;
+      left: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      max-width: 400px;
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .connection-log .log-title {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .connection-log .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .connection-log .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .connection-log .log-entry.success { color: var(--accent-green); }
+    .connection-log .log-entry.error { color: var(--accent-red); }
+    .connection-log .log-entry.info { color: var(--accent-blue); }
+    .connection-log .log-entry.warn { color: var(--accent-yellow); }
+
+    .status-dot.connecting {
+      background: var(--accent-yellow);
+    }
+
+    .status-dot.error {
+      background: var(--accent-red);
+      animation: none;
+    }
+
+    .status-dot.connected {
+      background: var(--accent-green);
+    }
+
+    /* Flex Grid */
+    .main-grid {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      gap: 0;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      min-height: 0;
+    }
+
+    .col-left { flex: 1; min-width: 200px; }
+    .col-middle { flex: 1; min-width: 200px; }
+    .col-right { flex: 0 0 280px; min-width: 180px; max-width: 400px; }
+
+    /* Resize Handles */
+    .resize-h {
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .resize-h:hover, .resize-h.active {
+      background: var(--border-resize);
+    }
+
+    .resize-h::before {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 40px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    .resize-h:hover::before, .resize-h.active::before {
+      background: var(--border-resize);
+    }
+
+    .resize-v {
+      height: 6px;
+      cursor: row-resize;
+      background: transparent;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .resize-v:hover, .resize-v.active {
+      background: var(--border-resize);
+    }
+
+    .resize-v::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 2px;
+      width: 40px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    .resize-v:hover::before, .resize-v.active::before {
+      background: var(--border-resize);
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 100px;
+      min-width: 100px;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      cursor: grab;
+    }
+
+    .panel-header:active { cursor: grabbing; }
+
+    .panel-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .panel-badge {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .panel-close {
+      margin-left: auto;
+      width: 18px;
+      height: 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+
+    .panel-close:hover {
+      background: var(--accent-red);
+      color: var(--text-primary);
+    }
+
+    .panel.hidden {
+      display: none;
+    }
+
+    /* Trading Data Panel */
+    .trading-data {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 10px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .data-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .data-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .data-value {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .data-value.green { color: var(--accent-green); }
+    .data-value.red { color: var(--accent-red); }
+    .data-value.blue { color: var(--accent-blue); }
+    .data-value.yellow { color: var(--accent-yellow); }
+
+    /* Market Info Header */
+    .market-info {
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .market-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .market-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .market-stat-label {
+      font-size: 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .market-stat-value {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+    }
+
+    /* Quick Trade Buttons */
+    .quick-trade {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .trade-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .trade-btn.buy {
+      background: var(--accent-green);
+      color: #000;
+    }
+
+    .trade-btn.sell {
+      background: var(--accent-red);
+      color: #fff;
+    }
+
+    .trade-btn:hover {
+      opacity: 0.9;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* Video */
+    .video-container { flex: 1; }
+
+    .video-container .panel-content {
+      background: #000;
+    }
+
+    .video-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .video-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Chart */
+    .chart-container { flex: 1; }
+    .chart-container .panel-content { padding: 12px; }
+
+    .price-display {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .price-main {
+      font-size: 24px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .price-change {
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+
+    .price-change.positive {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--accent-green);
+    }
+
+    .price-change.negative {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+    }
+
+    .chart-wrapper {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    #priceChart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Events */
+    .events-container { flex: 1; }
+    .events-container .panel-content {
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .event-item {
+      padding: 8px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      margin-bottom: 4px;
+      border-left: 2px solid var(--accent-blue);
+    }
+
+    .event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .event-type {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+    }
+
+    .event-time {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .event-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .event-impact {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+    }
+
+    .event-impact.positive { color: var(--accent-green); }
+    .event-impact.negative { color: var(--accent-red); }
+
+    /* Signals */
+    .signals-container { flex: 1; min-height: 100px; }
+
+    .signals-container .panel-content {
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .signal-item {
+      padding: 8px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      margin-bottom: 4px;
+      border-left: 2px solid;
+    }
+
+    .signal-item.panic { border-color: var(--accent-red); }
+    .signal-item.fomo { border-color: var(--accent-blue); }
+    .signal-item.vacuum { border-color: var(--accent-yellow); }
+
+    .signal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .signal-type {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .signal-type.panic { color: var(--accent-red); }
+    .signal-type.fomo { color: var(--accent-blue); }
+    .signal-type.vacuum { color: var(--accent-yellow); }
+
+    .signal-confidence {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    .signal-desc {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .signal-action {
+      font-size: 10px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+    }
+
+    .signal-action.buy { color: var(--accent-green); }
+    .signal-action.sell { color: var(--accent-red); }
+
+    /* Order Book */
+    .orderbook-container { flex: 1; min-height: 100px; }
+
+    .orderbook-content {
+      padding: 6px 8px;
+      overflow-y: auto;
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    .orderbook-header {
+      display: grid;
+      grid-template-columns: 50px 55px 50px 1fr;
+      padding: 4px 0 6px;
+      color: var(--text-muted);
+      font-size: 8px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+      gap: 4px;
+    }
+
+    .orderbook-header span:nth-child(2),
+    .orderbook-header span:nth-child(3) {
+      text-align: right;
+    }
+
+    .orderbook-row {
+      display: grid;
+      grid-template-columns: 50px 55px 50px 1fr;
+      padding: 3px 0;
+      font-size: 10px;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+      transition: background 0.15s ease;
+      border-radius: 2px;
+    }
+
+    .orderbook-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .orderbook-row.ask { color: var(--accent-red); }
+    .orderbook-row.bid { color: var(--accent-green); }
+
+    .orderbook-row .price { font-weight: 600; }
+    .orderbook-row .contracts { 
+      color: var(--text-secondary); 
+      text-align: right;
+    }
+    .orderbook-row .total { 
+      color: var(--text-muted); 
+      font-size: 9px;
+      text-align: right;
+    }
+
+    .volume-bar-wrapper {
+      height: 14px;
+      background: var(--bg-primary);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .volume-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .volume-bar.ask {
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0.15) 100%);
+    }
+
+    .volume-bar.bid {
+      background: linear-gradient(90deg, rgba(34, 197, 94, 0.4) 0%, rgba(34, 197, 94, 0.15) 100%);
+    }
+
+    .volume-label {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 8px;
+      color: var(--text-muted);
+    }
+
+    .orderbook-spread {
+      padding: 8px 0;
+      text-align: center;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 4px 0;
+      font-size: 9px;
+    }
+
+    .orderbook-spread span {
+      color: var(--accent-yellow);
+      font-weight: 600;
+    }
+
+    .text-right { text-align: right; }
+
+    /* Dragging overlay */
+    .drag-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      cursor: col-resize;
+      display: none;
+    }
+
+    .drag-overlay.active { display: block; }
+    .drag-overlay.row { cursor: row-resize; }
+
+    /* Market Search */
+    .search-container {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 6px 10px 6px 30px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    .search-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-top: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .search-dropdown.active {
+      display: block;
+    }
+
+    .search-loading, .search-empty {
+      padding: 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .search-result {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s ease;
+    }
+
+    .search-result:last-child {
+      border-bottom: none;
+    }
+
+    .search-result:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .search-result-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .search-result-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .search-result-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .search-result-ticker {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-blue);
+    }
+
+    .search-result-price {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+
+    .search-result-volume {
+      color: var(--accent-yellow);
+    }
+
+    .search-result-status {
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-size: 8px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .search-result-status.active {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--accent-green);
+    }
+
+    .search-result-status.closed {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-red);
+    }
+
+    .search-categories {
+      display: flex;
+      gap: 4px;
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .search-category {
+      padding: 4px 8px;
+      font-size: 9px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .search-category:hover,
+    .search-category.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: white;
+    }
+
+    .search-category.hot {
+      background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+      border-color: #ef4444;
+      color: white;
+    }
+
+    .search-category.hot:hover,
+    .search-category.hot.active {
+      background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+
+    .search-category {
+      padding: 4px 8px;
+      font-size: 9px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .search-category:hover,
+    .search-category.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="drag-overlay" id="dragOverlay"></div>
+  
+  <!-- Connection Log -->
+  <div class="connection-log" id="connectionLog">
+    <div class="log-title">Connection Log</div>
+    <div id="logEntries"></div>
+  </div>
+  
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo"><span>●</span> TERMINAL</div>
+      
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn live active" onclick="setMode('live')">● Live</button>
+        <button class="mode-btn analysis" onclick="setMode('analysis')">◉ Analysis</button>
+      </div>
+      
+      <!-- Live Mode Controls -->
+      <div class="input-group" id="liveControls">
+        <input id="videoUrl" type="text" placeholder="Stream URL" value="">
+        
+        <!-- Market Search -->
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input id="marketSearch" class="search-input" type="text" placeholder="Search Kalshi markets..." autocomplete="off">
+          <div class="search-dropdown" id="searchDropdown">
+            <div class="search-categories" id="searchCategories">
+              <span class="search-category hot" data-cat="hot" onclick="loadHotMarkets()">🔥 Hot</span>
+              <span class="search-category active" data-cat="">All</span>
+              <span class="search-category" data-cat="sports">Sports</span>
+              <span class="search-category" data-cat="politics">Politics</span>
+              <span class="search-category" data-cat="finance">Finance</span>
+              <span class="search-category" data-cat="weather">Weather</span>
+            </div>
+            <div id="searchResults">
+              <div class="search-empty">Type to search or click 🔥 Hot</div>
+            </div>
+          </div>
+        </div>
+        
+        <input id="marketId" type="text" placeholder="Ticker" value="KXATPMATCH-26JAN17NAKVAN-NAK" style="max-width: 220px;">
+        <button class="btn" onclick="startWatching()">● LIVE</button>
+      </div>
+      
+      <!-- Analysis Mode Controls -->
+      <div class="analysis-controls" id="analysisControls">
+        <div class="file-input-wrapper">
+          <input type="file" class="file-input" id="csvFile" accept=".csv" onchange="loadCSV(event)">
+          <label class="file-label" id="fileLabel">📁 Load CSV</label>
+        </div>
+        <select class="team-select" id="teamSelect" onchange="selectTeam()">
+          <option value="">Select Team</option>
+        </select>
+        <div class="playback-controls">
+          <button class="playback-btn" id="playBtn" onclick="togglePlayback()">▶</button>
+          <button class="playback-btn" onclick="stepBack()">⏮</button>
+          <button class="playback-btn" onclick="stepForward()">⏭</button>
+          <select class="speed-select" id="speedSelect" onchange="setSpeed()">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="5">5x</option>
+            <option value="10">10x</option>
+          </select>
+          <input type="range" class="timeline-slider" id="timeline" min="0" max="100" value="0" oninput="seekTimeline()">
+          <span class="timeline-time" id="timeDisplay">--:-- / --:--</span>
+        </div>
+      </div>
+      
+      <div class="status"><div class="status-dot"></div><span id="modeStatus">Mock</span></div>
+    </div>
+
+    <!-- Market Info Bar -->
+    <div class="market-info" id="marketInfoBar">
+      <div class="market-title" id="marketTitle">--</div>
+      <div class="market-stat">
+        <span class="market-stat-label">Status</span>
+        <span class="market-stat-value" id="marketStatus">--</span>
+      </div>
+      <div class="market-stat">
+        <span class="market-stat-label">Volume 24h</span>
+        <span class="market-stat-value" id="marketVolume">--</span>
+      </div>
+      <div class="market-stat">
+        <span class="market-stat-label">Open Interest</span>
+        <span class="market-stat-value" id="marketOI">--</span>
+      </div>
+      <div class="market-stat">
+        <span class="market-stat-label">Liquidity</span>
+        <span class="market-stat-value" id="marketLiquidity">--</span>
+      </div>
+    </div>
+
+    <!-- Trading Data Grid -->
+    <div class="trading-data" id="tradingData">
+      <div class="data-item">
+        <span class="data-label">Yes Bid</span>
+        <span class="data-value green" id="yesBid">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Yes Ask</span>
+        <span class="data-value green" id="yesAsk">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">No Bid</span>
+        <span class="data-value red" id="noBid">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">No Ask</span>
+        <span class="data-value red" id="noAsk">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Spread</span>
+        <span class="data-value yellow" id="yesSpread">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Last Price</span>
+        <span class="data-value blue" id="lastPrice">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Prev Price</span>
+        <span class="data-value" id="prevPrice">--</span>
+      </div>
+      <div class="data-item">
+        <span class="data-label">Change</span>
+        <span class="data-value" id="priceChangeAmt">--</span>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid" id="mainGrid">
+      <!-- Left Column -->
+      <div class="column col-left" id="colLeft">
+        <div class="panel video-container" id="videoPanel">
+          <div class="panel-header">
+            <span class="panel-title">Stream</span>
+            <span class="panel-badge">LIVE</span>
+            <button class="panel-close" onclick="closePanel('videoPanel')">×</button>
+          </div>
+          <div class="panel-content" id="videoPlayer"></div>
+        </div>
+      </div>
+
+      <!-- Resize Handle 1 -->
+      <div class="resize-h" id="resize1" data-resize="col" data-left="colLeft" data-right="colMiddle"></div>
+
+      <!-- Middle Column -->
+      <div class="column col-middle" id="colMiddle">
+        <div class="panel chart-container" id="chartPanel">
+          <div class="panel-header">
+            <span class="panel-title">Price</span>
+            <span class="panel-badge">1s</span>
+            <button class="panel-close" onclick="closePanel('chartPanel')">×</button>
+          </div>
+          <div class="panel-content">
+            <div class="price-display">
+              <span class="price-main mono" id="currentPrice">$0.5500</span>
+              <span class="price-change positive" id="priceChange">+0.00%</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="priceChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resize Handle V1 -->
+        <div class="resize-v" data-resize="row" data-top="chartPanel" data-bottom="eventsPanel"></div>
+
+        <div class="panel events-container" id="eventsPanel">
+          <div class="panel-header">
+            <span class="panel-title">Events</span>
+            <span class="panel-badge" id="eventCount">0</span>
+            <button class="panel-close" onclick="closePanel('eventsPanel')">×</button>
+          </div>
+          <div class="panel-content" id="eventsList"></div>
+        </div>
+      </div>
+
+      <!-- Resize Handle 2 -->
+      <div class="resize-h" id="resize2" data-resize="col" data-left="colMiddle" data-right="colRight"></div>
+
+      <!-- Right Column -->
+      <div class="column col-right" id="colRight">
+        <div class="panel signals-container" id="signalsPanel">
+          <div class="panel-header">
+            <span class="panel-title">Signals</span>
+            <span class="panel-badge" id="signalCount">0</span>
+            <button class="panel-close" onclick="closePanel('signalsPanel')">×</button>
+          </div>
+          <div class="panel-content" id="signalsList"></div>
+        </div>
+
+        <!-- Resize Handle V2 -->
+        <div class="resize-v" data-resize="row" data-top="signalsPanel" data-bottom="orderbookPanel"></div>
+
+        <div class="panel orderbook-container" id="orderbookPanel">
+          <div class="panel-header">
+            <span class="panel-title">Order Book</span>
+            <span class="panel-badge" id="spreadBadge">--</span>
+            <button class="panel-close" onclick="closePanel('orderbookPanel')">×</button>
+          </div>
+          <div class="panel-content orderbook-content">
+            <div class="orderbook-header">
+              <span>Price</span>
+              <span>Contracts</span>
+              <span>Total $</span>
+              <span>Volume</span>
+            </div>
+            <div id="asks"></div>
+            <div class="orderbook-spread">
+              <div>Spread <span id="spread">--</span></div>
+              <div style="font-size: 8px; color: var(--text-muted); margin-top: 2px;">
+                Total Liq: <span id="totalLiquidity">--</span>
+              </div>
+            </div>
+            <div id="bids"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== MODE & STATE =====
+    let currentMode = 'live'; // 'live' or 'analysis'
+    let analysisData = null;
+    let analysisTeams = [];
+    let selectedTeam = null;
+    let analysisIndex = 0;
+    let isPlaying = false;
+    let playbackInterval = null;
+    let playbackSpeed = 1;
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.mode-btn.${mode}`).classList.add('active');
+      
+      document.getElementById('liveControls').style.display = mode === 'live' ? 'flex' : 'none';
+      document.getElementById('analysisControls').classList.toggle('visible', mode === 'analysis');
+      document.getElementById('modeStatus').textContent = mode === 'live' ? 'Connecting...' : 'Analysis';
+      
+      if (mode === 'live') {
+        stopPlayback();
+        startLiveUpdates();
+      } else {
+        stopLiveUpdates();
+        if (analysisData && selectedTeam) {
+          renderAnalysisFrame();
+        }
+      }
+    }
+
+    function loadCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        parseCSV(text, file.name);
+      };
+      reader.readAsText(file);
+    }
+
+    function parseCSV(text, filename) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',');
+      
+      // First column is timestamp, rest are teams
+      analysisTeams = headers.slice(1);
+      analysisData = {
+        filename,
+        timestamps: [],
+        prices: {}
+      };
+      
+      analysisTeams.forEach(team => {
+        analysisData.prices[team] = [];
+      });
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        analysisData.timestamps.push(values[0]);
+        analysisTeams.forEach((team, j) => {
+          analysisData.prices[team].push(parseFloat(values[j + 1]) / 100); // Convert cents to dollars
+        });
+      }
+      
+      // Update UI
+      document.getElementById('fileLabel').textContent = `✓ ${filename}`;
+      document.getElementById('fileLabel').classList.add('loaded');
+      
+      // Populate team selector
+      const select = document.getElementById('teamSelect');
+      select.innerHTML = '<option value="">Select Team</option>';
+      analysisTeams.forEach(team => {
+        select.innerHTML += `<option value="${team}">${team}</option>`;
+      });
+      
+      // Auto-select first team
+      if (analysisTeams.length > 0) {
+        select.value = analysisTeams[0];
+        selectTeam();
+      }
+      
+      updateTimeline();
+    }
+
+    function selectTeam() {
+      selectedTeam = document.getElementById('teamSelect').value;
+      if (!selectedTeam || !analysisData) return;
+      
+      // Reset and load price history for this team
+      priceHistory = [...analysisData.prices[selectedTeam]];
+      analysisIndex = priceHistory.length - 1;
+      currentPrice = priceHistory[analysisIndex];
+      startPrice = priceHistory[0];
+      
+      drawChart();
+      updateTimeline();
+      renderAnalysisFrame();
+    }
+
+    function updateTimeline() {
+      if (!analysisData) return;
+      const slider = document.getElementById('timeline');
+      slider.max = analysisData.timestamps.length - 1;
+      slider.value = analysisIndex;
+      updateTimeDisplay();
+    }
+
+    function updateTimeDisplay() {
+      if (!analysisData) return;
+      const current = analysisData.timestamps[analysisIndex] || '--';
+      const total = analysisData.timestamps[analysisData.timestamps.length - 1] || '--';
+      
+      // Format timestamps
+      const formatTs = (ts) => {
+        if (ts === '--') return ts;
+        try {
+          const d = new Date(ts);
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch { return ts; }
+      };
+      
+      document.getElementById('timeDisplay').textContent = `${formatTs(current)} / ${formatTs(total)}`;
+    }
+
+    function seekTimeline() {
+      analysisIndex = parseInt(document.getElementById('timeline').value);
+      renderAnalysisFrame();
+    }
+
+    function togglePlayback() {
+      if (isPlaying) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
+    }
+
+    function startPlayback() {
+      if (!analysisData || !selectedTeam) return;
+      isPlaying = true;
+      document.getElementById('playBtn').textContent = '⏸';
+      document.getElementById('playBtn').classList.add('active');
+      
+      const baseInterval = 1000 / playbackSpeed;
+      playbackInterval = setInterval(() => {
+        if (analysisIndex < analysisData.timestamps.length - 1) {
+          analysisIndex++;
+          renderAnalysisFrame();
+        } else {
+          stopPlayback();
+        }
+      }, baseInterval);
+    }
+
+    function stopPlayback() {
+      isPlaying = false;
+      document.getElementById('playBtn').textContent = '▶';
+      document.getElementById('playBtn').classList.remove('active');
+      if (playbackInterval) {
+        clearInterval(playbackInterval);
+        playbackInterval = null;
+      }
+    }
+
+    function stepBack() {
+      if (analysisIndex > 0) {
+        analysisIndex--;
+        renderAnalysisFrame();
+      }
+    }
+
+    function stepForward() {
+      if (analysisData && analysisIndex < analysisData.timestamps.length - 1) {
+        analysisIndex++;
+        renderAnalysisFrame();
+      }
+    }
+
+    function setSpeed() {
+      playbackSpeed = parseFloat(document.getElementById('speedSelect').value);
+      if (isPlaying) {
+        stopPlayback();
+        startPlayback();
+      }
+    }
+
+    function renderAnalysisFrame() {
+      if (!analysisData || !selectedTeam) return;
+      
+      // Update current price
+      currentPrice = analysisData.prices[selectedTeam][analysisIndex];
+      
+      // Build price history up to current index
+      priceHistory = analysisData.prices[selectedTeam].slice(0, analysisIndex + 1);
+      
+      drawChart();
+      document.getElementById('timeline').value = analysisIndex;
+      updateTimeDisplay();
+      
+      // Update order book with simulated data around current price
+      updateOrderBook();
+    }
+
+    // ===== LIVE MODE - KALSHI API =====
+    let liveIntervals = [];
+    let kalshiMarket = null;
+    let lastYesBid = null;
+    let lastYesAsk = null;
+    let pollCount = 0;
+    const KALSHI_API = 'https://api.elections.kalshi.com/trade-api/v2';
+    
+    // Multiple CORS proxies to try
+    const PROXIES = [
+      'https://api.allorigins.win/raw?url=',
+      'https://corsproxy.io/?',
+      'https://api.codetabs.com/v1/proxy?quest='
+    ];
+    let currentProxyIndex = 0;
+
+    // ===== MARKET SEARCH =====
+    let searchTimeout = null;
+    let currentCategory = '';
+    let cachedMarkets = [];
+
+    function initSearch() {
+      const searchInput = document.getElementById('marketSearch');
+      const dropdown = document.getElementById('searchDropdown');
+      
+      // Show dropdown on focus
+      searchInput.addEventListener('focus', () => {
+        dropdown.classList.add('active');
+        if (searchInput.value.length >= 2) {
+          searchMarkets(searchInput.value);
+        }
+      });
+      
+      // Hide dropdown on click outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+          dropdown.classList.remove('active');
+        }
+      });
+      
+      // Search on input
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        if (query.length < 2) {
+          document.getElementById('searchResults').innerHTML = 
+            '<div class="search-empty">Type at least 2 characters...</div>';
+          return;
+        }
+        
+        document.getElementById('searchResults').innerHTML = 
+          '<div class="search-loading">Searching...</div>';
+        
+        searchTimeout = setTimeout(() => searchMarkets(query), 300);
+      });
+      
+      // Category filters
+      document.querySelectorAll('.search-category').forEach(cat => {
+        cat.addEventListener('click', () => {
+          document.querySelectorAll('.search-category').forEach(c => c.classList.remove('active'));
+          cat.classList.add('active');
+          currentCategory = cat.dataset.cat;
+          const query = searchInput.value.trim();
+          if (query.length >= 2) {
+            searchMarkets(query);
+          }
+        });
+      });
+    }
+
+    async function searchMarkets(query) {
+      const resultsContainer = document.getElementById('searchResults');
+      
+      try {
+        // Build search URL - Kalshi API doesn't support status filter as param
+        let url = `${KALSHI_API}/markets?limit=100`;
+        
+        const proxy = PROXIES[currentProxyIndex];
+        log(`Search: "${query}" via ${proxy.split('//')[1].split('/')[0]}`, 'info');
+        
+        const resp = await fetch(proxy + encodeURIComponent(url));
+        
+        if (!resp.ok) {
+          log(`Search HTTP ${resp.status}, trying next proxy`, 'warn');
+          currentProxyIndex = (currentProxyIndex + 1) % PROXIES.length;
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        
+        const data = await resp.json();
+        cachedMarkets = data.markets || [];
+        log(`Got ${cachedMarkets.length} markets from API`, 'success');
+        
+        // Filter by search query and active status with volume
+        const queryLower = query.toLowerCase();
+        let filtered = cachedMarkets.filter(m => {
+          // Only show active markets
+          if (m.status !== 'active') return false;
+          
+          // Must have some volume or open interest (tradeable)
+          const hasActivity = (m.volume_24h > 0) || (m.open_interest > 0) || 
+                             (parseFloat(m.yes_bid_dollars) > 0);
+          if (!hasActivity) return false;
+          
+          // Text search
+          const matchesQuery = 
+            m.title?.toLowerCase().includes(queryLower) ||
+            m.ticker?.toLowerCase().includes(queryLower) ||
+            m.subtitle?.toLowerCase().includes(queryLower);
+          
+          // Category filter
+          if (currentCategory && matchesQuery) {
+            const ticker = m.ticker?.toLowerCase() || '';
+            if (currentCategory === 'sports') {
+              return ticker.includes('nba') || ticker.includes('nfl') || 
+                     ticker.includes('mlb') || ticker.includes('nhl') ||
+                     ticker.includes('atp') || ticker.includes('game') ||
+                     ticker.includes('match') || ticker.includes('pts') ||
+                     ticker.includes('spread');
+            } else if (currentCategory === 'politics') {
+              return ticker.includes('pres') || ticker.includes('inx') ||
+                     ticker.includes('sen') || ticker.includes('gov') ||
+                     ticker.includes('trump') || ticker.includes('biden');
+            } else if (currentCategory === 'finance') {
+              return ticker.includes('sp') || ticker.includes('nasdaq') ||
+                     ticker.includes('btc') || ticker.includes('eth') ||
+                     ticker.includes('fed') || ticker.includes('rate');
+            } else if (currentCategory === 'weather') {
+              return ticker.includes('temp') || ticker.includes('weather') ||
+                     ticker.includes('snow') || ticker.includes('rain') ||
+                     ticker.includes('high');
+            }
+          }
+          
+          return matchesQuery;
+        });
+        
+        // Sort by volume (most active first)
+        filtered.sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0));
+        
+        log(`Filtered to ${filtered.length} active markets with volume`, 'info');
+        
+        if (filtered.length === 0) {
+          resultsContainer.innerHTML = '<div class="search-empty">No active markets with volume found</div>';
+          return;
+        }
+        
+        // Render results
+        resultsContainer.innerHTML = filtered.slice(0, 25).map(market => {
+          const price = parseFloat(market.yes_bid_dollars || market.last_price_dollars) || 0;
+          const volume = market.volume_24h || 0;
+          const oi = market.open_interest || 0;
+          const liquidity = parseFloat(market.liquidity_dollars) || 0;
+          
+          return `
+            <div class="search-result" onclick="selectMarket('${market.ticker}')">
+              <div class="search-result-title">${market.title}</div>
+              <div class="search-result-meta">
+                <span class="search-result-ticker">${market.ticker.length > 35 ? market.ticker.slice(0, 35) + '...' : market.ticker}</span>
+                <span class="search-result-price">$${price.toFixed(2)}</span>
+                <span class="search-result-volume">Vol: ${formatNumber(volume)}</span>
+                <span class="search-result-volume">OI: ${formatNumber(oi)}</span>
+                <span class="search-result-status active">●</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+      } catch (err) {
+        log(`Search error: ${err.message}`, 'error');
+        resultsContainer.innerHTML = `<div class="search-empty">Error: ${err.message}</div>`;
+      }
+    }
+
+    async function loadHotMarkets() {
+      const resultsContainer = document.getElementById('searchResults');
+      const dropdown = document.getElementById('searchDropdown');
+      dropdown.classList.add('active');
+      
+      // Update category buttons
+      document.querySelectorAll('.search-category').forEach(c => c.classList.remove('active'));
+      document.querySelector('.search-category.hot').classList.add('active');
+      
+      resultsContainer.innerHTML = '<div class="search-loading">Loading hot markets...</div>';
+      
+      try {
+        const url = `${KALSHI_API}/markets?limit=200`;
+        const proxy = PROXIES[currentProxyIndex];
+        log(`Loading hot markets via ${proxy.split('//')[1].split('/')[0]}`, 'info');
+        
+        const resp = await fetch(proxy + encodeURIComponent(url));
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        
+        const data = await resp.json();
+        const markets = data.markets || [];
+        
+        // Filter for active markets with volume, sort by volume
+        const hot = markets
+          .filter(m => m.status === 'active' && (m.volume_24h > 0 || m.open_interest > 100))
+          .sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))
+          .slice(0, 30);
+        
+        log(`Found ${hot.length} hot markets`, 'success');
+        
+        if (hot.length === 0) {
+          resultsContainer.innerHTML = '<div class="search-empty">No active markets with volume found</div>';
+          return;
+        }
+        
+        resultsContainer.innerHTML = hot.map(market => {
+          const price = parseFloat(market.yes_bid_dollars || market.last_price_dollars) || 0;
+          const volume = market.volume_24h || 0;
+          const oi = market.open_interest || 0;
+          
+          return `
+            <div class="search-result" onclick="selectMarket('${market.ticker}')">
+              <div class="search-result-title">${market.title}</div>
+              <div class="search-result-meta">
+                <span class="search-result-ticker">${market.ticker.length > 35 ? market.ticker.slice(0, 35) + '...' : market.ticker}</span>
+                <span class="search-result-price">$${price.toFixed(2)}</span>
+                <span class="search-result-volume">Vol: ${formatNumber(volume)}</span>
+                <span class="search-result-volume">OI: ${formatNumber(oi)}</span>
+                <span class="search-result-status active">●</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+      } catch (err) {
+        log(`Hot markets error: ${err.message}`, 'error');
+        resultsContainer.innerHTML = `<div class="search-empty">Error: ${err.message}</div>`;
+      }
+    }
+
+    function selectMarket(ticker) {
+      document.getElementById('marketId').value = ticker;
+      document.getElementById('marketSearch').value = '';
+      document.getElementById('searchDropdown').classList.remove('active');
+      
+      log(`Selected market: ${ticker}`, 'info');
+      
+      // Start watching the new market
+      startWatching();
+    }
+
+    function log(message, type = 'info') {
+      const entries = document.getElementById('logEntries');
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${time}] ${message}`;
+      entries.insertBefore(entry, entries.firstChild);
+      
+      // Keep only last 10 entries
+      while (entries.children.length > 10) {
+        entries.lastChild.remove();
+      }
+      
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    function setConnectionStatus(status) {
+      const dot = document.querySelector('.status-dot');
+      const statusText = document.getElementById('modeStatus');
+      
+      dot.classList.remove('connecting', 'connected', 'error');
+      
+      if (status === 'connecting') {
+        dot.classList.add('connecting');
+        statusText.textContent = 'Connecting...';
+      } else if (status === 'connected') {
+        dot.classList.add('connected');
+        statusText.textContent = 'LIVE';
+      } else if (status === 'error') {
+        dot.classList.add('error');
+        statusText.textContent = 'Error';
+      } else {
+        statusText.textContent = status;
+      }
+    }
+
+    function updateMarketInfo(market) {
+      document.getElementById('marketTitle').textContent = market.title || market.ticker;
+      document.getElementById('marketStatus').textContent = market.status?.toUpperCase() || '--';
+      document.getElementById('marketVolume').textContent = formatNumber(market.volume_24h || 0);
+      document.getElementById('marketOI').textContent = formatNumber(market.open_interest || 0);
+      document.getElementById('marketLiquidity').textContent = '$' + formatNumber(parseFloat(market.liquidity_dollars) || 0);
+    }
+
+    function updateTradingData(market) {
+      const yesBid = parseFloat(market.yes_bid_dollars) || 0;
+      const yesAsk = parseFloat(market.yes_ask_dollars) || 0;
+      const noBid = parseFloat(market.no_bid_dollars) || 0;
+      const noAsk = parseFloat(market.no_ask_dollars) || 0;
+      const lastPx = parseFloat(market.last_price_dollars) || 0;
+      const prevPx = parseFloat(market.previous_price_dollars) || 0;
+      const spread = yesAsk - yesBid;
+      const change = lastPx - prevPx;
+
+      document.getElementById('yesBid').textContent = '$' + yesBid.toFixed(2);
+      document.getElementById('yesAsk').textContent = '$' + yesAsk.toFixed(2);
+      document.getElementById('noBid').textContent = '$' + noBid.toFixed(2);
+      document.getElementById('noAsk').textContent = '$' + noAsk.toFixed(2);
+      document.getElementById('yesSpread').textContent = (spread * 100).toFixed(1) + '¢';
+      document.getElementById('lastPrice').textContent = '$' + lastPx.toFixed(2);
+      document.getElementById('prevPrice').textContent = '$' + prevPx.toFixed(2);
+      
+      const changeEl = document.getElementById('priceChangeAmt');
+      changeEl.textContent = (change >= 0 ? '+' : '') + (change * 100).toFixed(1) + '¢';
+      changeEl.className = 'data-value ' + (change >= 0 ? 'green' : 'red');
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toFixed(0);
+    }
+
+    function closePanel(panelId) {
+      const panel = document.getElementById(panelId);
+      if (panel) {
+        panel.classList.add('hidden');
+      }
+    }
+
+    function showAllPanels() {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('hidden'));
+    }
+
+    async function fetchKalshiMarket(ticker) {
+      const proxy = PROXIES[currentProxyIndex];
+      const url = `${KALSHI_API}/markets/${ticker}`;
+      const fullUrl = proxy + encodeURIComponent(url);
+      
+      log(`Fetching: ${ticker}`, 'info');
+      log(`Proxy: ${proxy.split('//')[1].split('/')[0]}`, 'info');
+      
+      try {
+        const resp = await fetch(fullUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!resp.ok) {
+          log(`HTTP ${resp.status} - trying next proxy`, 'warn');
+          currentProxyIndex = (currentProxyIndex + 1) % PROXIES.length;
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        
+        const text = await resp.text();
+        log(`Response: ${text.substring(0, 100)}...`, 'info');
+        
+        const data = JSON.parse(text);
+        log(`Got market: ${data.market?.title || 'unknown'}`, 'success');
+        return data.market;
+      } catch (err) {
+        log(`Fetch error: ${err.message}`, 'error');
+        return null;
+      }
+    }
+
+    async function fetchKalshiTrades(ticker, limit = 50) {
+      const proxy = PROXIES[currentProxyIndex];
+      const url = `${KALSHI_API}/markets/trades?ticker=${ticker}&limit=${limit}`;
+      
+      try {
+        const resp = await fetch(proxy + encodeURIComponent(url));
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        return data.trades || [];
+      } catch (err) {
+        log(`Trades error: ${err.message}`, 'error');
+        return [];
+      }
+    }
+
+    async function updateFromKalshi() {
+      const ticker = document.getElementById('marketId').value.trim();
+      if (!ticker) {
+        log('No ticker specified', 'warn');
+        return;
+      }
+
+      pollCount++;
+      log(`Poll #${pollCount}`, 'info');
+      setConnectionStatus('connecting');
+
+      const market = await fetchKalshiMarket(ticker);
+      if (!market) {
+        setConnectionStatus('error');
+        return;
+      }
+
+      kalshiMarket = market;
+      setConnectionStatus('connected');
+
+      // Update market info bar
+      updateMarketInfo(market);
+
+      // Update trading data grid
+      updateTradingData(market);
+
+      // Update price from yes_bid (probability)
+      const newPrice = parseFloat(market.yes_bid_dollars) || parseFloat(market.last_price_dollars) || 0.5;
+      const yesBid = parseFloat(market.yes_bid_dollars) || 0;
+      const yesAsk = parseFloat(market.yes_ask_dollars) || 0;
+      const noBid = parseFloat(market.no_bid_dollars) || 0;
+      const noAsk = parseFloat(market.no_ask_dollars) || 0;
+
+      // Detect signals
+      if (lastYesBid !== null) {
+        const bidChange = yesBid - lastYesBid;
+        const askChange = yesAsk - lastYesAsk;
+        
+        if (bidChange < -0.03) {
+          addRealSignal('PANIC_SELL', `Bid dropped ${(bidChange * 100).toFixed(1)}¢`, 'BUY');
+        } else if (bidChange > 0.03) {
+          addRealSignal('FOMO_BUY', `Bid jumped +${(bidChange * 100).toFixed(1)}¢`, 'SELL');
+        }
+        
+        const spread = yesAsk - yesBid;
+        if (spread > 0.05) {
+          addRealSignal('LIQ_VACUUM', `Wide spread: ${(spread * 100).toFixed(1)}¢`, 'BUY');
+        }
+      }
+      lastYesBid = yesBid;
+      lastYesAsk = yesAsk;
+
+      // Update current price
+      currentPrice = newPrice;
+      priceHistory.push(currentPrice);
+      if (priceHistory.length > 200) priceHistory.shift();
+      drawChart();
+
+      // Update order book with real bid/ask
+      updateRealOrderBook(yesBid, yesAsk, noBid, noAsk, market);
+
+      // Add market event
+      addMarketEvent(market);
+    }
+
+    function updateRealOrderBook(yesBid, yesAsk, noBid, noAsk, market) {
+      let asksHtml = '';
+      let bidsHtml = '';
+      
+      // Get liquidity from market
+      const totalLiquidity = parseFloat(market.liquidity_dollars) || 0;
+      const openInterest = market.open_interest || 0;
+      
+      // Simulate order book levels based on market data
+      // In reality you'd fetch from /markets/{ticker}/orderbook endpoint
+      const askLevels = [];
+      const bidLevels = [];
+      
+      // Generate ask levels (selling YES / prices above current)
+      for (let i = 0; i < 8; i++) {
+        const price = yesAsk + 0.01 * i;
+        if (price > 0.99) continue;
+        // Distribute liquidity - more at tighter spreads
+        const weight = Math.exp(-i * 0.5);
+        const contracts = Math.floor((totalLiquidity * 0.3 * weight) / price / 8);
+        const total = contracts * price;
+        askLevels.push({ price, contracts, total });
+      }
+      
+      // Generate bid levels (buying YES / prices below current)
+      for (let i = 0; i < 8; i++) {
+        const price = yesBid - 0.01 * i;
+        if (price < 0.01) continue;
+        const weight = Math.exp(-i * 0.5);
+        const contracts = Math.floor((totalLiquidity * 0.3 * weight) / price / 8);
+        const total = contracts * price;
+        bidLevels.push({ price, contracts, total });
+      }
+      
+      // Find max for bar scaling
+      const maxContracts = Math.max(
+        ...askLevels.map(l => l.contracts),
+        ...bidLevels.map(l => l.contracts),
+        1
+      );
+      
+      // Render asks (reversed so highest price is at top)
+      askLevels.reverse().forEach(level => {
+        const barWidth = (level.contracts / maxContracts) * 100;
+        asksHtml += `
+          <div class="orderbook-row ask">
+            <span class="price">$${level.price.toFixed(2)}</span>
+            <span class="contracts">${formatNumber(level.contracts)}</span>
+            <span class="total">$${formatNumber(level.total)}</span>
+            <div class="volume-bar-wrapper">
+              <div class="volume-bar ask" style="width: ${barWidth}%"></div>
+              <span class="volume-label">${((level.contracts / maxContracts) * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+        `;
+      });
+      
+      // Render bids
+      bidLevels.forEach(level => {
+        const barWidth = (level.contracts / maxContracts) * 100;
+        bidsHtml += `
+          <div class="orderbook-row bid">
+            <span class="price">$${level.price.toFixed(2)}</span>
+            <span class="contracts">${formatNumber(level.contracts)}</span>
+            <span class="total">$${formatNumber(level.total)}</span>
+            <div class="volume-bar-wrapper">
+              <div class="volume-bar bid" style="width: ${barWidth}%"></div>
+              <span class="volume-label">${((level.contracts / maxContracts) * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('asks').innerHTML = asksHtml;
+      document.getElementById('bids').innerHTML = bidsHtml;
+
+      const spread = (yesAsk - yesBid);
+      const spreadCents = (spread * 100).toFixed(1);
+      document.getElementById('spread').textContent = `${spreadCents}¢ (${(spread / yesAsk * 100).toFixed(1)}%)`;
+      document.getElementById('spreadBadge').textContent = `${spreadCents}¢`;
+      document.getElementById('totalLiquidity').textContent = '$' + formatNumber(totalLiquidity);
+    }
+
+    function addRealSignal(type, desc, side) {
+      signalCount++;
+      document.getElementById('signalCount').textContent = signalCount;
+      
+      const cls = type === 'PANIC_SELL' ? 'panic' : type === 'FOMO_BUY' ? 'fomo' : 'vacuum';
+      const html = `
+        <div class="signal-item ${cls}">
+          <div class="signal-header">
+            <span class="signal-type ${cls}">${type}</span>
+            <span class="signal-confidence">${new Date().toLocaleTimeString()}</span>
+          </div>
+          <div class="signal-desc">${desc}</div>
+          <span class="signal-action ${side.toLowerCase()}">${side}</span>
+        </div>
+      `;
+      document.getElementById('signalsList').insertAdjacentHTML('afterbegin', html);
+      while (document.getElementById('signalsList').children.length > 20) {
+        document.getElementById('signalsList').lastChild.remove();
+      }
+    }
+
+    function addMarketEvent(market) {
+      if (Math.random() > 0.8) {
+        eventCount++;
+        document.getElementById('eventCount').textContent = eventCount;
+        
+        const vol24h = market.volume_24h || 0;
+        const openInt = market.open_interest || 0;
+        const html = `
+          <div class="event-item">
+            <div class="event-header">
+              <span class="event-type">MARKET</span>
+              <span class="event-time">${new Date().toLocaleTimeString()}</span>
+            </div>
+            <div class="event-desc">${market.title || market.ticker}</div>
+            <div class="event-impact positive">Vol: ${vol24h} | OI: ${openInt}</div>
+          </div>
+        `;
+        document.getElementById('eventsList').insertAdjacentHTML('afterbegin', html);
+        while (document.getElementById('eventsList').children.length > 30) {
+          document.getElementById('eventsList').lastChild.remove();
+        }
+      }
+    }
+
+    function startLiveUpdates() {
+      stopLiveUpdates();
+      
+      const ticker = document.getElementById('marketId').value.trim();
+      log(`Starting live updates for: ${ticker}`, 'info');
+      setConnectionStatus('connecting');
+      
+      // Initial fetch
+      updateFromKalshi();
+      
+      // Poll every 2 seconds
+      liveIntervals.push(setInterval(updateFromKalshi, 2000));
+      log('Polling started (2s interval)', 'success');
+    }
+
+    function stopLiveUpdates() {
+      liveIntervals.forEach(id => clearInterval(id));
+      liveIntervals = [];
+      log('Polling stopped', 'info');
+    }
+
+    // ===== RESIZE FUNCTIONALITY =====
+    const overlay = document.getElementById('dragOverlay');
+    let activeResize = null;
+    let startX = 0;
+    let startY = 0;
+    let startWidthLeft = 0;
+    let startWidthRight = 0;
+    let startHeightTop = 0;
+    let startHeightBottom = 0;
+
+    document.querySelectorAll('.resize-h, .resize-v').forEach(handle => {
+      handle.addEventListener('mousedown', startResize);
+    });
+
+    function startResize(e) {
+      e.preventDefault();
+      activeResize = e.target;
+      activeResize.classList.add('active');
+      
+      const isCol = activeResize.dataset.resize === 'col';
+      overlay.classList.add('active');
+      overlay.classList.toggle('row', !isCol);
+      
+      startX = e.clientX;
+      startY = e.clientY;
+      
+      if (isCol) {
+        const leftEl = document.getElementById(activeResize.dataset.left);
+        const rightEl = document.getElementById(activeResize.dataset.right);
+        startWidthLeft = leftEl.getBoundingClientRect().width;
+        startWidthRight = rightEl.getBoundingClientRect().width;
+      } else {
+        const topEl = document.getElementById(activeResize.dataset.top);
+        const bottomEl = document.getElementById(activeResize.dataset.bottom);
+        startHeightTop = topEl.getBoundingClientRect().height;
+        startHeightBottom = bottomEl.getBoundingClientRect().height;
+      }
+      
+      document.addEventListener('mousemove', doResize);
+      document.addEventListener('mouseup', stopResize);
+    }
+
+    function doResize(e) {
+      if (!activeResize) return;
+      
+      const isCol = activeResize.dataset.resize === 'col';
+      
+      if (isCol) {
+        const deltaX = e.clientX - startX;
+        const leftEl = document.getElementById(activeResize.dataset.left);
+        const rightEl = document.getElementById(activeResize.dataset.right);
+        
+        const newLeftWidth = Math.max(150, startWidthLeft + deltaX);
+        const newRightWidth = Math.max(150, startWidthRight - deltaX);
+        
+        // Check bounds
+        if (newLeftWidth >= 150 && newRightWidth >= 150) {
+          leftEl.style.flex = `0 0 ${newLeftWidth}px`;
+          rightEl.style.flex = `0 0 ${newRightWidth}px`;
+        }
+      } else {
+        const deltaY = e.clientY - startY;
+        const topEl = document.getElementById(activeResize.dataset.top);
+        const bottomEl = document.getElementById(activeResize.dataset.bottom);
+        
+        const newTopHeight = Math.max(80, startHeightTop + deltaY);
+        const newBottomHeight = Math.max(80, startHeightBottom - deltaY);
+        
+        if (newTopHeight >= 80 && newBottomHeight >= 80) {
+          topEl.style.flex = `0 0 ${newTopHeight}px`;
+          bottomEl.style.flex = `0 0 ${newBottomHeight}px`;
+        }
+      }
+      
+      drawChart();
+    }
+
+    function stopResize() {
+      if (activeResize) {
+        activeResize.classList.remove('active');
+        activeResize = null;
+      }
+      overlay.classList.remove('active', 'row');
+      document.removeEventListener('mousemove', doResize);
+      document.removeEventListener('mouseup', stopResize);
+      saveLayout();
+    }
+
+    // Save/Load layout
+    function saveLayout() {
+      const layout = {};
+      document.querySelectorAll('.column, .panel').forEach(el => {
+        if (el.style.flex) {
+          layout[el.id] = el.style.flex;
+        }
+      });
+      localStorage.setItem('terminalLayout', JSON.stringify(layout));
+    }
+
+    function loadLayout() {
+      try {
+        const saved = localStorage.getItem('terminalLayout');
+        if (saved) {
+          const layout = JSON.parse(saved);
+          Object.entries(layout).forEach(([id, flex]) => {
+            const el = document.getElementById(id);
+            if (el) el.style.flex = flex;
+          });
+        }
+      } catch (e) {}
+    }
+
+    // ===== TRADING DATA =====
+    let priceHistory = [];
+    let currentPrice = 0.55;
+    let startPrice = 0.55;
+    let eventCount = 0;
+    let signalCount = 0;
+
+    function init() {
+      loadLayout();
+      initSearch();
+      updateVideo();
+      generatePriceHistory();
+      startUpdates();
+      window.addEventListener('resize', drawChart);
+    }
+
+    function updateVideo() {
+      const url = document.getElementById('videoUrl').value;
+      let embedUrl = '';
+      
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const videoId = url.includes('youtu.be') 
+          ? url.split('/').pop().split('?')[0]
+          : new URL(url).searchParams.get('v');
+        embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
+      } else if (url.includes('twitch.tv')) {
+        const channel = url.split('/').pop();
+        embedUrl = `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}`;
+      }
+
+      document.getElementById('videoPlayer').innerHTML = embedUrl 
+        ? `<iframe src="${embedUrl}" allowfullscreen></iframe>`
+        : '<div class="video-placeholder">Enter stream URL</div>';
+    }
+
+    function generatePriceHistory() {
+      for (let i = 50; i >= 0; i--) {
+        currentPrice += (Math.random() - 0.5) * 0.02;
+        currentPrice = Math.max(0.1, Math.min(0.9, currentPrice));
+        priceHistory.push(currentPrice);
+      }
+      startPrice = priceHistory[0];
+      drawChart();
+    }
+
+    function drawChart() {
+      const canvas = document.getElementById('priceChart');
+      const wrapper = canvas.parentElement;
+      if (!wrapper) return;
+      
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (priceHistory.length < 2) return;
+      
+      const min = Math.min(...priceHistory) - 0.01;
+      const max = Math.max(...priceHistory) + 0.01;
+      const range = max - min;
+      
+      // Grid
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = Math.floor((i / 4) * canvas.height) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      
+      // Price line
+      const isUp = currentPrice >= startPrice;
+      ctx.strokeStyle = isUp ? '#22c55e' : '#ef4444';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      priceHistory.forEach((price, i) => {
+        const x = (i / (priceHistory.length - 1)) * canvas.width;
+        const y = canvas.height - ((price - min) / range) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      
+      // Fill
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, isUp ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Update display
+      const change = ((currentPrice - startPrice) / startPrice) * 100;
+      document.getElementById('currentPrice').textContent = '$' + currentPrice.toFixed(4);
+      const changeEl = document.getElementById('priceChange');
+      changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+      changeEl.className = 'price-change ' + (change >= 0 ? 'positive' : 'negative');
+    }
+
+    function updateOrderBook() {
+      const mid = currentPrice;
+      let bidsHtml = '';
+      let asksHtml = '';
+      
+      for (let i = 7; i >= 0; i--) {
+        const askPrice = mid + 0.001 * (i + 1) + Math.random() * 0.001;
+        const askSize = Math.floor(100 + Math.random() * 500);
+        asksHtml += `<div class="orderbook-row ask"><span>$${askPrice.toFixed(4)}</span><span class="text-right">${askSize}</span></div>`;
+      }
+      
+      for (let i = 0; i < 8; i++) {
+        const bidPrice = mid - 0.001 * (i + 1) - Math.random() * 0.001;
+        const bidSize = Math.floor(100 + Math.random() * 500);
+        bidsHtml += `<div class="orderbook-row bid"><span>$${bidPrice.toFixed(4)}</span><span class="text-right">${bidSize}</span></div>`;
+      }
+      
+      document.getElementById('asks').innerHTML = asksHtml;
+      document.getElementById('bids').innerHTML = bidsHtml;
+      
+      const spreadVal = (0.002 + Math.random() * 0.001).toFixed(4);
+      document.getElementById('spread').textContent = '$' + spreadVal;
+      document.getElementById('spreadBadge').textContent = spreadVal;
+    }
+
+    const signalTypes = [
+      { type: 'PANIC_SELL', cls: 'panic', desc: 'Large sell pressure', side: 'BUY' },
+      { type: 'FOMO_BUY', cls: 'fomo', desc: 'Aggressive buying', side: 'SELL' },
+      { type: 'LIQ_VACUUM', cls: 'vacuum', desc: 'Thin book detected', side: 'BUY' },
+    ];
+
+    function addSignal() {
+      if (Math.random() > 0.7) {
+        const sig = signalTypes[Math.floor(Math.random() * signalTypes.length)];
+        const conf = (70 + Math.random() * 25).toFixed(0);
+        signalCount++;
+        document.getElementById('signalCount').textContent = signalCount;
+        
+        const html = `
+          <div class="signal-item ${sig.cls}">
+            <div class="signal-header">
+              <span class="signal-type ${sig.cls}">${sig.type}</span>
+              <span class="signal-confidence">${conf}%</span>
+            </div>
+            <div class="signal-desc">${sig.desc}</div>
+            <span class="signal-action ${sig.side.toLowerCase()}">${sig.side}</span>
+          </div>
+        `;
+        document.getElementById('signalsList').insertAdjacentHTML('afterbegin', html);
+        while (document.getElementById('signalsList').children.length > 20) {
+          document.getElementById('signalsList').lastChild.remove();
+        }
+      }
+    }
+
+    const eventTypes = [
+      { type: 'ROUND_WIN', desc: 'Team A wins round', impact: 0.03 },
+      { type: 'ACE', desc: 'Player clutch 1v4', impact: 0.05 },
+      { type: 'TIMEOUT', desc: 'Technical pause', impact: -0.01 },
+      { type: 'ECO', desc: 'Eco round started', impact: -0.02 },
+    ];
+
+    function addEvent() {
+      if (Math.random() > 0.6) {
+        const evt = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+        const impact = evt.impact * (0.5 + Math.random());
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+        eventCount++;
+        document.getElementById('eventCount').textContent = eventCount;
+        
+        const html = `
+          <div class="event-item">
+            <div class="event-header">
+              <span class="event-type">${evt.type}</span>
+              <span class="event-time">${time}</span>
+            </div>
+            <div class="event-desc">${evt.desc}</div>
+            <div class="event-impact ${impact > 0 ? 'positive' : 'negative'}">
+              ${impact > 0 ? '+' : ''}${(impact * 100).toFixed(2)}%
+            </div>
+          </div>
+        `;
+        document.getElementById('eventsList').insertAdjacentHTML('afterbegin', html);
+        while (document.getElementById('eventsList').children.length > 30) {
+          document.getElementById('eventsList').lastChild.remove();
+        }
+      }
+    }
+
+    function startUpdates() {
+      updateOrderBook();
+      startLiveUpdates();
+    }
+
+    function startWatching() { updateVideo(); }
+    document.getElementById('videoUrl').addEventListener('change', updateVideo);
+    init();
+  </script>
+</body>
+</html>
